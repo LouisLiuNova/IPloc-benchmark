@@ -13,7 +13,7 @@ COMMON = ("binary", "prefix16", "prefix20")
 def selection(candidate, algorithm, prefix=False):
     candidates = ["java", "rust-jni"] if candidate == "all" else [candidate]
     algorithms = list(COMMON) if algorithm == "legacy" else [algorithm]
-    if prefix:
+    if prefix and algorithm == "legacy":
         algorithms = ["prefix16"]
     if "rust-jni" in candidates and any(a not in COMMON for a in algorithms):
         raise ValueError("Rust 不支持该策略；支持 binary、prefix16、prefix20")

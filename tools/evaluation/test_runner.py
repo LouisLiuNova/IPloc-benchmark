@@ -177,6 +177,19 @@ class RunnerTests(unittest.TestCase):
             ),
         )
 
+    def test_explicit_algorithm_precedes_legacy_prefix_flag(self):
+        import candidates
+
+        self.assertEqual(
+            (["rust-jni"], ["binary"]), candidates.selection("rust-jni", "binary", True)
+        )
+        self.assertEqual(
+            (["rust-jni"], ["prefix16"]),
+            candidates.selection("rust-jni", "legacy", True),
+        )
+        with self.assertRaisesRegex(ValueError, "Rust 不支持"):
+            candidates.selection("all", "eytzinger", True)
+
     def test_resume_checks_native_and_query_identity(self):
         import candidates
 
