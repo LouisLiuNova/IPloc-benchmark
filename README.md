@@ -26,6 +26,13 @@ Linux x86_64 GNU libc、JDK 11 的 Rust/JNI 三策略原型已完成。两种候
 | java | prefix20 | 53.360 | 2.819 | 2.290 |
 | rust-jni | prefix20 | 72.181 | 3.621 | 2.771 |
 
+同配置的主要观测与验证结果：
+
+- `prefix20` 的 Rust/JNI 行号、UTF-8、字符串吞吐分别约为同轮 Java 的 **1.35×、1.28×、1.21×**；`binary` 和 `prefix16` 的 Rust UTF-8 吞吐较低，不能概括为 Rust 全面更快。
+- 默认 Java 的 59 项契约测试、Native profile 的 77 项共用契约与 3 项 JNI 边界测试、4 项 Rust 单元测试及 14 项运行器测试通过；48/48 项结果路径与字符串解析预检通过。
+- 主矩阵约耗时 **13.8 分钟**，Java/Rust 进程的采样峰值 RSS 分别约 **10.11–10.17 / 6.62–6.73 GiB**，最低系统可用内存为 **3.81 GiB**。RSS 为每秒采样，Java GC 指标不包含 Native 分配，不能据此推导精确回收量。
+- 可复核证据：[324 项指标摘要](doc/verification/rust-java-quick.json)、[原始指标、直方图与资源采样](doc/verification/rust-java-quick-raw.json.gz)、[正确性与预检记录](doc/verification/rust-jni-validation.json)。证据包含源码、JAR、Native、数据与查询输入的 hash。
+
 本轮每个候选/算法使用独立进程，进程内 forks=0、1×1 秒预热和测量，共享 JIT/GC 历史；仍属探索性短测，不替代正式多 fork 复测。完整延迟、加载/资源、限制和复跑方法见[配对报告](doc/Rust与Java配对快速测量结果.md)与 [Rust 接入说明](rust/README.md)。以下 Java 九策略结果为前一轮独立记录，不与本轮混算加速比。
 
 ## Java 实测数据与结论
