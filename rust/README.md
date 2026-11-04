@@ -1,6 +1,6 @@
 # Rust/JNI 候选
 
-Linux x86_64 GNU libc、Java 11 的静态快照评估实现，支持 `binary`、`prefix16`、`prefix20`。默认 `binary`。Java 仍支持原有九种策略；本轮实现和实测状态见[配对评估报告](../doc/Rust与Java配对快速测量结果.md)。
+Linux x86_64 GNU libc、Java 11 的静态快照评估实现，支持与 Java 相同的九种策略，默认 `binary`。策略语义与索引开销见 [Rust 搜索策略](../doc/Rust搜索策略.md)，本轮实测见[九策略配对报告](../doc/Rust九策略配对快速测量结果.md)，[三策略报告](../doc/Rust与Java配对快速测量结果.md)保留为历史记录。
 
 ## 构建和使用
 
@@ -26,7 +26,7 @@ try (RustIpRangeSnapshot snapshot = RustIpRangeSnapshot.open(Path.of("iploc.parq
 }
 ```
 
-`withAlgorithm(String)` 创建共享不可变数据的独立视图，关闭 base 不影响已有视图；`algorithm()` 和 `indexBytes()` 供评估使用。后者只表示额外前缀目录的基本类型数组字节数，不等于 RSS。`nativeBuildInfo()` 返回动态库编译时的工具链、目标、profile 和十六进制编码的 Rust flags。
+`withAlgorithm(String)` 创建共享不可变数据的独立视图，关闭 base 不影响已有视图；`algorithm()` 和 `indexBytes()` 供评估使用。后者只表示额外目录和树布局的基本类型数组字节数，不等于 RSS。`nativeBuildInfo()` 返回动态库编译时的工具链、目标、profile 和十六进制编码的 Rust flags。
 
 ## 数据与生命周期契约
 
@@ -45,30 +45,30 @@ try (RustIpRangeSnapshot snapshot = RustIpRangeSnapshot.open(Path.of("iploc.parq
 先按根 README 生成或核对真实数据的独立 PyArrow oracle，再执行：
 
 ```bash
-# 两候选三策略、N=10M/Q=1M、四档命中率的算术 oracle。
+# 两候选九策略、N=10M/Q=1M、四档命中率的算术 oracle。
 python3 tools/evaluation/run.py verify --candidate all --synthetic-verify \
-  --output benchmark-results/rust-synthetic-verify
+  --output benchmark-results/rust-nine-synthetic-verify
 
 # 同一真实数据的行号和八字段核验。
 python3 tools/evaluation/run.py verify --candidate all \
-  --oracle benchmark-results/oracle/oracle.tsv --output benchmark-results/rust-real-verify
+  --oracle benchmark-results/oracle/oracle.tsv --output benchmark-results/rust-nine-real-verify
 
-# 两候选三策略的结果路径及字符串解析入口短预检。
+# 两候选九策略的结果路径及字符串解析入口短预检。
 python3 tools/evaluation/run.py benchmark --candidate all --quick \
-  --output benchmark-results/rust-preflight
+  --output benchmark-results/rust-nine-preflight
 
-# 324 项快速矩阵；候选和算法在独立进程中串行交替运行。
+# 972 项快速矩阵；候选和算法在独立进程中串行交替运行。
 python3 tools/evaluation/run.py benchmark --candidate all --algorithms-quick \
-  --output benchmark-results/rust-java-quick
-python3 tools/evaluation/run.py report --output benchmark-results/rust-java-quick
+  --output benchmark-results/rust-nine-java-quick
+python3 tools/evaluation/run.py report --output benchmark-results/rust-nine-java-quick
 ```
 
-可使用 `--candidate rust-jni` 仅测 Native，`--algorithm binary|prefix16|prefix20` 限定策略，`--native` 指向其他绝对库路径，`--jdk` 指定 JDK 11。跨候选快速矩阵不接受旧的 `--matrix-quick` 或 `--only`；正式多 fork Native 测量未在本轮开放。旧 Java 九策略命令继续可用。
+可使用 `--candidate rust-jni` 仅测 Native，`--algorithm <ID>` 限定九种策略之一，`--native` 指向其他绝对库路径，`--jdk` 指定 JDK 11。跨候选快速矩阵不接受旧的 `--matrix-quick` 或 `--only`；正式多 fork Native 测量未在本轮开放。旧 Java 九策略命令继续可用。
 
 `--resume` 只跳过相同源码、JAR、Native hash、编译元数据、数据/oracle、输入 hash、JDK 和场景配置下已通过的运行。默认候选仍是 Java；`--candidate all` 需要可用 Native 构建，不再静默跳过 Rust。每个进程只加载一套全量快照，使用原有 2 GiB 系统余量/12 GiB 进程组 RSS 保护。
 
 ## 后续待办
 
-以下六种策略尚未接入 Rust：`prefix16-24`、`interleaved4`、`interleaved8`、`prefix16-interleaved4`、`prefix16-interleaved8`、`eytzinger`。接入前均需同一公共契约、独立 oracle 和配对实测；显式选择时当前直接报错。
+九种策略均已接入 Rust；支持列表见 [Rust 搜索策略](../doc/Rust搜索策略.md)。真实数据与大合成数据的独立核验和配对快速测试结果以本轮报告为准。
 
 正式多 fork 长测、30 分钟以上稳定性专项、Native 分配器深入观测、热刷新、C ABI、跨平台 classifier JAR、DirectByteBuffer/零拷贝、内部并行和业务上线均留待后续。本轮不预设加速比，也不把快速矩阵视为生产采用证据。

@@ -1,8 +1,8 @@
 # IPloc-benchmark
 
-面向 Java 11 的 IPv4 区间批量查询库与性能评估框架，并列维护 `java`、`rust-jni` 候选。Java 支持九种搜索策略；Rust/JNI 已实现 Linux x86_64 GNU libc 候选，支持 `binary`、`prefix16`、`prefix20`，通过相同 Java 公共契约。
+面向 Java 11 的 IPv4 区间批量查询库与性能评估框架，并列维护 `java`、`rust-jni` 候选。Java 与 Linux x86_64 GNU libc 的 Rust/JNI 候选均支持九种搜索策略，通过相同 Java 公共契约。
 
-当前默认搜索算法为 `binary`。本项目尚未完成正式独立 fork 长测，现有快速结果用于筛选后续复测配置；Rust/JNI 的配对实测与限制见[中文报告](doc/Rust与Java配对快速测量结果.md)。
+当前默认搜索算法为 `binary`。本项目尚未完成正式独立 fork 长测，现有快速结果用于筛选后续复测配置；Rust/JNI 九策略的配对实测与限制见[中文报告](doc/Rust九策略配对快速测量结果.md)。
 
 - [Rust/JNI 配对快速结果](#rustjni-配对快速结果)
 - [Java 实测数据与结论](#java-实测数据与结论)
@@ -13,27 +13,32 @@
 
 ## Rust/JNI 配对快速结果
 
-Linux x86_64 GNU libc、JDK 11 的 Rust/JNI 三策略原型已完成。两种候选均通过 5,171 个真实全量独立 oracle 样本和 N=10M/Q=1M 合成核验；同轮 **324/324 项配对快速矩阵**完成，无缺项、重复项或资源保护触发。默认 Java 构建不需要 Rust，Native 通过 `-Prust-jni` 显式启用。
+Rust 已补齐 `prefix16-24`、`interleaved4/8`、`prefix16-interleaved4/8`、`eytzinger`，两候选现均支持九种策略。两侧九策略均通过 5,171 个真实全量独立 oracle 样本，以及 N=10M/Q=1M、四档命中率合成核验。**同轮 972/972 项配对快速矩阵完成**，无缺项、重复项或资源保护触发。默认 Java 构建无需 Rust，Native 通过 `-Prust-jni` 显式启用。
 
-下表固定 B=4,096、C=8，单位为百万 IP/s，包含相应结果消费：
+下表固定 B=4,096、C=8，吞吐单位为**百万 IP/s**，包含相应结果消费。最后一列为同轮、同算法、同配置的字符串吞吐比；完整 Java/Rust 三路径对照见[九策略报告](doc/Rust九策略配对快速测量结果.md)。
 
-| 候选 | 策略 | 行号 | 八字段 UTF-8 | 八字段字符串 |
-|---|---|---:|---:|---:|
-| java | binary | 12.861 | 2.790 | 2.332 |
-| rust-jni | binary | 15.183 | 2.428 | 2.240 |
-| java | prefix16 | 38.060 | 3.147 | 2.723 |
-| rust-jni | prefix16 | 47.141 | 2.699 | 2.757 |
-| java | prefix20 | 53.360 | 2.819 | 2.290 |
-| rust-jni | prefix20 | 72.181 | 3.621 | 2.771 |
+| Rust 策略 | 行号 | 八字段 UTF-8 | 八字段字符串 | 字符串 Rust ÷ Java |
+|---|---|---|---|---|
+| `binary` | 14.008 | 2.612 | 2.166 | 0.96× |
+| `prefix16` | 42.995 | 3.327 | 2.620 | 1.06× |
+| `prefix20` | 69.899 | 3.597 | 2.771 | 1.03× |
+| `prefix16-24` | 39.458 | 3.327 | 2.333 | 0.79× |
+| `interleaved4` | 19.824 | 2.935 | 2.081 | 0.84× |
+| `interleaved8` | 23.456 | 2.856 | 2.615 | 1.10× |
+| `prefix16-interleaved4` | 44.699 | 2.815 | 2.492 | 0.95× |
+| `prefix16-interleaved8` | 40.844 | 3.471 | 2.853 | 1.10× |
+| `eytzinger` | 15.389 | 2.741 | 2.327 | 0.93× |
 
-同配置的主要观测与验证结果：
+本轮观测与验证结果：
 
-- `prefix20` 的 Rust/JNI 行号、UTF-8、字符串吞吐分别约为同轮 Java 的 **1.35×、1.28×、1.21×**；`binary` 和 `prefix16` 的 Rust UTF-8 吞吐较低，不能概括为 Rust 全面更快。
-- 默认 Java 的 59 项契约测试、Native profile 的 77 项共用契约与 3 项 JNI 边界测试、4 项 Rust 单元测试及 14 项运行器测试通过；48/48 项结果路径与字符串解析预检通过。
-- 主矩阵约耗时 **13.8 分钟**，Java/Rust 进程的采样峰值 RSS 分别约 **10.11–10.17 / 6.62–6.73 GiB**，最低系统可用内存为 **3.81 GiB**。RSS 为每秒采样，Java GC 指标不包含 Native 分配，不能据此推导精确回收量。
-- 可复核证据：[324 项指标摘要](doc/verification/rust-java-quick.json)、[原始指标、直方图与资源采样](doc/verification/rust-java-quick-raw.json.gz)、[正确性与预检记录](doc/verification/rust-jni-validation.json)。证据包含源码、JAR、Native、数据与查询输入的 hash。
+- **行号路径优先复测 `prefix20`**：Rust 约 69.90 百万 IP/s，为同轮 Java 的 1.73 倍；UTF-8/字符串约为同算法 Java 的 1.08/1.03 倍，业务结果收益远小于行号收益。
+- **新增策略中，Rust 字符串优先复测 `prefix16-interleaved8`**：该配置约 2.85 百万 IP/s，为同算法 Java 的 1.10 倍，也是该配置下 Rust 九策略中最高值；Java `prefix16-24` 约 2.94 百万 IP/s，不能据此宣称 Rust 整体更快。
+- **策略组合需要实测选择**：Rust 纯八路交错的行号和字符串高于纯四路；Rust 两级目录的三路径均低于同算法 Java，Eytzinger 也未显示配对优势。Eytzinger 额外数组约 246.5 MiB，两级目录约 1.91 MiB，前者并未在该配置中抵消额外成本。
+- 默认 Java **59 项**测试、Native profile **113 项**共用契约及 **3 项** JNI 边界测试、Rust **5 项**单元测试、Python **14 项**运行器测试通过。两候选九策略合成 oracle 共核验 **7,200 万次查询**；默认仍为 `binary`。
+- 主矩阵约 **41.4 分钟**，最高采样进程组 RSS **10.33 GiB**，最低系统可用内存 **3.65 GiB**。RSS 每秒采样，Java GC 指标不包含 Native 分配。
+- 可复核证据：[972 项指标摘要](doc/verification/rust-nine-java-quick.json)、[原始指标、直方图与资源采样](doc/verification/rust-nine-java-quick-raw.json.gz)、[正确性核验记录](doc/verification/rust-nine-validation.json)。保留源码、JAR、Native、数据及查询输入的 hash。
 
-本轮每个候选/算法使用独立进程，进程内 forks=0、1×1 秒预热和测量，共享 JIT/GC 历史；仍属探索性短测，不替代正式多 fork 复测。完整延迟、加载/资源、限制和复跑方法见[配对报告](doc/Rust与Java配对快速测量结果.md)与 [Rust 接入说明](rust/README.md)。以下 Java 九策略结果为前一轮独立记录，不与本轮混算加速比。
+每个候选/算法使用独立进程，进程内 forks=0、1×1 秒预热和测量，共享 JIT/GC 历史；仍属探索性短测，尚未完成正式多 fork 长测。本轮未额外重复解析性能预检，解析正确性由公共契约覆盖。完整延迟、加载/资源、限制和复跑方法见[九策略报告](doc/Rust九策略配对快速测量结果.md)、[策略说明](doc/Rust搜索策略.md)与 [Rust 接入说明](rust/README.md)。[首轮三策略结果](doc/Rust与Java配对快速测量结果.md)及以下 Java 九策略结果保留为历史记录，不与本轮混算比值。
 
 ## Java 实测数据与结论
 
@@ -190,7 +195,7 @@ python3 tools/evaluation/run.py benchmark --algorithm prefix20 --only real-b4096
 python3 tools/evaluation/run.py report --output benchmark-results/prefix20-formal
 ```
 
-使用 `--jdk` 指定评估 JDK；`--resume` 仅跳过同目录已通过场景，要求源码提交、JAR、数据及 JDK 一致。启用 Native 构建后，`--candidate all` 比较三种共同策略，`--candidate rust-jni` 仅测 Rust；Native 缺失或显式选择 Rust 未支持策略会报错。跨候选使用 `--quick`、`--algorithms-quick` 或 `verify`，详见 [Rust 接入说明](rust/README.md)。原有 `benchmark --matrix-quick` 为首轮 128 项矩阵，不能替代新的九策略矩阵。
+使用 `--jdk` 指定评估 JDK；`--resume` 仅跳过同目录已通过场景，要求源码提交、JAR、数据及 JDK 一致。启用 Native 构建后，`--candidate all` 比较全部九种共同策略，`--candidate rust-jni` 仅测 Rust；Native 缺失或显式选择未知策略会报错。跨候选使用 `--quick`、`--algorithms-quick` 或 `verify`，详见 [Rust 接入说明](rust/README.md)。原有 `benchmark --matrix-quick` 为首轮 128 项矩阵，不能替代新的九策略矩阵。
 
 每个运行目录保存 manifest、命令、控制台、JMH JSON、GC 日志、进程组 RSS/CPU、系统可用内存采样、状态及汇总报告。正式测量的完整配置与参数见[评估说明](doc/Java候选与性能评估.md)及[算法测试入口](doc/Java搜索算法候选.md)。
 
@@ -210,5 +215,6 @@ python3 tools/evaluation/run.py report --output benchmark-results/prefix20-forma
 
 - [Java 搜索算法候选与测试](doc/Java搜索算法候选.md)：策略语义、API、生命周期与复跑命令。
 - [Java 候选与性能评估](doc/Java候选与性能评估.md)：首轮评估范围、消费方式与正式测量口径。
-- [Rust 接入说明](rust/README.md)：构建、使用、数据与生命周期契约、配对评估及待办策略。
+- [Rust 搜索策略](doc/Rust搜索策略.md)：九策略语义、索引成本、边界测试和完整配对复跑入口。
+- [Rust 接入说明](rust/README.md)：构建、使用、数据与生命周期契约、配对评估及后续范围。
 - [IPv4 批量查询可行性验证实施计划](doc/IPv4批量查询可行性验证实施计划.md)：包含更大的后续 Rust/JNI 范围，历史规划；当前实现与实测状态以 Java 与 Rust 配对报告为准。
