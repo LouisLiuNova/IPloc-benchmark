@@ -256,15 +256,16 @@ abstract class SearchIndexes {
     @Override
     void lookup(int[] ips, int offset, int length, long[] rows, int out) {
       for (int j = 0; j < length; j++) {
-        int ip = ips[offset + j], best = -1;
+        int ip = ips[offset + j], candidateNode = 0;
         long node = 1;
         while (node <= size) {
           int p = (int) node;
           if (Integer.compareUnsigned(keys[p], ip) <= 0) {
-            best = originalRows[p];
+            candidateNode = p;
             node = node * 2 + 1;
           } else node *= 2;
         }
+        int best = candidateNode == 0 ? -1 : originalRows[candidateNode];
         rows[out + j] = best >= 0 && Integer.compareUnsigned(ip, ends[best]) <= 0 ? best : -1;
       }
     }
