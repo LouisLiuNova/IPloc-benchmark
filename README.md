@@ -1,18 +1,36 @@
 # IPloc-benchmark
 
-面向 Java 11 的 IPv4 区间批量查询库与性能评估框架，在 `main` 中并列维护 `java`、`rust-jni` 候选。Java 已实现并完成真实全量数据的正确性核验与快速性能矩阵；Rust/JNI 仅预留工程，状态为 `not_implemented`。
+面向 Java 11 的 IPv4 区间批量查询库与性能评估框架，并列维护 `java`、`rust-jni` 候选。Java 支持九种搜索策略；Rust/JNI 已实现 Linux x86_64 GNU libc 候选，支持 `binary`、`prefix16`、`prefix20`，通过相同 Java 公共契约。
 
-当前默认搜索算法为 `binary`。本项目尚未完成正式独立 fork 长测，现有结果用于筛选后续复测配置；不据此判断 Rust/JNI 收益。
+当前默认搜索算法为 `binary`。本项目尚未完成正式独立 fork 长测，现有快速结果用于筛选后续复测配置；Rust/JNI 的配对实测与限制见[中文报告](doc/Rust与Java配对快速测量结果.md)。
 
+- [Rust/JNI 配对快速结果](#rustjni-配对快速结果)
 - [Java 实测数据与结论](#java-实测数据与结论)
 - [构建与正确性测试](#构建与正确性测试)
 - [使用方式与接口约束](#使用方式与接口约束)
 - [复现实测与资源保护](#复现实测与资源保护)
 - [工程与文档导航](#工程与文档导航)
 
+## Rust/JNI 配对快速结果
+
+Linux x86_64 GNU libc、JDK 11 的 Rust/JNI 三策略原型已完成。两种候选均通过 5,171 个真实全量独立 oracle 样本和 N=10M/Q=1M 合成核验；同轮 **324/324 项配对快速矩阵**完成，无缺项、重复项或资源保护触发。默认 Java 构建不需要 Rust，Native 通过 `-Prust-jni` 显式启用。
+
+下表固定 B=4,096、C=8，单位为百万 IP/s，包含相应结果消费：
+
+| 候选 | 策略 | 行号 | 八字段 UTF-8 | 八字段字符串 |
+|---|---|---:|---:|---:|
+| java | binary | 12.861 | 2.790 | 2.332 |
+| rust-jni | binary | 15.183 | 2.428 | 2.240 |
+| java | prefix16 | 38.060 | 3.147 | 2.723 |
+| rust-jni | prefix16 | 47.141 | 2.699 | 2.757 |
+| java | prefix20 | 53.360 | 2.819 | 2.290 |
+| rust-jni | prefix20 | 72.181 | 3.621 | 2.771 |
+
+本轮每个候选/算法使用独立进程，进程内 forks=0、1×1 秒预热和测量，共享 JIT/GC 历史；仍属探索性短测，不替代正式多 fork 复测。完整延迟、加载/资源、限制和复跑方法见[配对报告](doc/Rust与Java配对快速测量结果.md)与 [Rust 接入说明](rust/README.md)。以下 Java 九策略结果为前一轮独立记录，不与本轮混算加速比。
+
 ## Java 实测数据与结论
 
-截至 2026-11-04，最新一轮完成 **9 个策略、486/486 个测量组合**，无缺项、额外项或重复项；资源保护未触发。JDK 11 构建、59 项契约/边界测试及 10 项运行器测试通过，9 个策略各自通过真实全量数据上 **5,171 个独立 PyArrow oracle 样本**的原始行号与八字段比对。
+2026-11-04 的前一轮 Java 九策略评估完成 **486/486 个测量组合**，无缺项、额外项或重复项；资源保护未触发。JDK 11 构建、59 项契约/边界测试及 10 项运行器测试通过，9 个策略各自通过真实全量数据上 **5,171 个独立 PyArrow oracle 样本**的原始行号与八字段比对。
 
 ### 环境与测量口径
 
@@ -95,11 +113,11 @@ RSS 为采样峰值，不是精确瞬时最大值。资源数据用于确认本�
 
 - **最新算法对照**：[完整中文分析](doc/Java搜索算法快速测量结果.md)、[486 项指标摘要](doc/verification/java-algorithms-quick.json)、[压缩原始指标、直方图与资源采样](doc/verification/java-algorithms-quick-raw.json.gz)，对应 [PR #2](https://github.com/LouisLiuNova/IPloc-benchmark/pull/2)。
 - **首轮历史结果**：[128 项快速矩阵](doc/Java全矩阵快速测量结果.md)，包含基础二分的补充批次、合成空洞命中率及字符串解析入口，对应 [PR #1](https://github.com/LouisLiuNova/IPloc-benchmark/pull/1)。新旧两轮源码不同，不直接混用绝对值；最新九策略性能仅覆盖真实数据，未重复合成命中率性能矩阵。
-- **尚未完成**：3 forks、5×1 秒预热、10×1 秒测量的正式长测，以及 Rust/JNI 实现与实测。原正式运行已按先完成快速矩阵的决策停止，未计为完整正式成绩。
+- **尚未完成**：3 forks、5×1 秒预热、10×1 秒测量的正式长测，及跨候选正式长测。原正式运行已按先完成快速矩阵的决策停止，未计为完整正式成绩。
 
 ## 构建与正确性测试
 
-使用 JDK 11，评估脚本需要 Python 3.11+。Maven Wrapper 固定为 3.9.11 并校验分发包 SHA-256，构建固定 `--release 11`。Linux CI 仅运行构建与小数据校验，真实全量核验和性能矩阵在本机执行。
+使用 JDK 11，评估脚本需要 Python 3.11+。Maven Wrapper 固定为 3.9.11 并校验分发包 SHA-256，构建固定 `--release 11`。Linux CI 分别运行 Java 与 Rust/JNI 的构建与小数据校验，真实全量核验和性能矩阵在本机执行。
 
 ```bash
 # 可用 IPLOC_JDK_HOME 指向其他机器的 JDK 11。
@@ -165,7 +183,7 @@ python3 tools/evaluation/run.py benchmark --algorithm prefix20 --only real-b4096
 python3 tools/evaluation/run.py report --output benchmark-results/prefix20-formal
 ```
 
-使用 `--jdk` 指定评估 JDK；`--resume` 仅跳过同目录已通过场景，要求源码提交、JAR、数据及 JDK 一致。`--candidate all` 明确跳过尚未实现的 Rust，显式 `--candidate rust-jni` 返回错误。原有 `benchmark --matrix-quick` 为首轮 128 项矩阵，不能替代新的九策略矩阵。
+使用 `--jdk` 指定评估 JDK；`--resume` 仅跳过同目录已通过场景，要求源码提交、JAR、数据及 JDK 一致。启用 Native 构建后，`--candidate all` 比较三种共同策略，`--candidate rust-jni` 仅测 Rust；Native 缺失或显式选择 Rust 未支持策略会报错。跨候选使用 `--quick`、`--algorithms-quick` 或 `verify`，详见 [Rust 接入说明](rust/README.md)。原有 `benchmark --matrix-quick` 为首轮 128 项矩阵，不能替代新的九策略矩阵。
 
 每个运行目录保存 manifest、命令、控制台、JMH JSON、GC 日志、进程组 RSS/CPU、系统可用内存采样、状态及汇总报告。正式测量的完整配置与参数见[评估说明](doc/Java候选与性能评估.md)及[算法测试入口](doc/Java搜索算法候选.md)。
 
@@ -179,10 +197,11 @@ python3 tools/evaluation/run.py report --output benchmark-results/prefix20-forma
 | `java/iprange-java` | Apache Parquet Java 加载、不可变数据、九种搜索策略 |
 | `java/iprange-contract` | 可继承的共用契约测试与错误数据验证 |
 | `java/iprange-bench` | 候选工厂、独立样本校验与 JMH 测量路径 |
-| `rust` | 最小 Cargo workspace 与后续接入契约，当前无实现或成绩 |
+| `rust` | Rust core、JNI、固定工具链与依赖锁文件 |
+| `java/iprange-rust` | 可选 Java Native 包装、ABI 检查、Cleaner 及 JNI 边界测试 |
 | `tools/evaluation` | 独立 oracle、串行评估、资源保护、报告与证据导出 |
 
 - [Java 搜索算法候选与测试](doc/Java搜索算法候选.md)：策略语义、API、生命周期与复跑命令。
 - [Java 候选与性能评估](doc/Java候选与性能评估.md)：首轮评估范围、消费方式与正式测量口径。
-- [Rust 接入说明](rust/README.md)：后续候选需遵守的契约。
-- [IPv4 批量查询可行性验证实施计划](doc/IPv4批量查询可行性验证实施计划.md)：包含更大的后续 Rust/JNI 范围，当前实现与实测状态以上述报告为准。
+- [Rust 接入说明](rust/README.md)：构建、使用、数据与生命周期契约、配对评估及待办策略。
+- [IPv4 批量查询可行性验证实施计划](doc/IPv4批量查询可行性验证实施计划.md)：包含更大的后续 Rust/JNI 范围，历史规划；当前实现与实测状态以 Java 与 Rust 配对报告为准。
