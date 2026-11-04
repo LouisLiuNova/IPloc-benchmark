@@ -70,6 +70,11 @@ class RunnerTests(unittest.TestCase):
             (d / "status.json").write_text('{"status":"failed"}')
             self.assertEqual([], run.report(root))
 
+    def test_histogram_sample_count(self):
+        metric = {"rawDataHistogram": [[[[0.1, 3], [0.2, 4]]], [[[0.3, 5]]]]}
+        self.assertEqual(12, run.sample_count(metric))
+        self.assertIsNone(run.sample_count({}))
+
     def test_matrix(self):
         cases = run.scenarios("real", False)
         self.assertEqual(28, len(cases))

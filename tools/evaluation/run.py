@@ -147,6 +147,15 @@ def scenarios(dataset, quick):
     return cases
 
 
+def sample_count(metric):
+    histogram = metric.get("rawDataHistogram")
+    if histogram is None:
+        return None
+    return sum(
+        int(count) for fork in histogram for iteration in fork for _, count in iteration
+    )
+
+
 def report(directory):
     rows = []
     statuses = []
@@ -167,7 +176,7 @@ def report(directory):
         for r in results:
             m = r["primaryMetric"]
             batch = int(r["params"]["batch"])
-            percentiles = m.get("scorePercentiles", {})
+            percentiles = m.get("scorePercentiles", {}) if r["mode"] == "sample" else {}
             rows.append(
                 {
                     "scenario": path.parent.name,
@@ -184,7 +193,9 @@ def report(directory):
                     "p50": percentiles.get("50.0"),
                     "p95": percentiles.get("95.0"),
                     "p99": percentiles.get("99.0"),
-                    "samples": m.get("sampleCount"),
+                    "samples": sample_count(m),
+                    "tailSufficient": sample_count(m) is not None
+                    and sample_count(m) >= 10000,
                 }
             )
     manifest_path = directory / "manifest.json"
@@ -205,15 +216,15 @@ def report(directory):
         "",
         "Rust/JNI：not_implemented，尚无跨候选对比。",
         "",
-        "吞吐包含结果消费；sample 延迟单位为秒/批次。尾延迟有效性还需检查原始直方图和样本数。",
+        "吞吐包含结果消费；sample 延迟单位为秒/批次。尾延迟样本少于 10,000 时标为不足（P99 尾部不足约 100 个样本）；不宣称稳定。",
         "",
-        "| 场景 | 路径 | 模式 | B | C | IP/s 或秒/批次 | P50 | P95 | P99 |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
+        "| 场景 | 路径 | 模式 | B | C | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---|",
     ]
     for r in rows:
         val = r["ipPerSecond"] if r["ipPerSecond"] is not None else r["score"]
         lines.append(
-            f"| {r['scenario']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} |"
+            f"| {r['scenario']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'足够' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
         )
     lines += ["", "## 运行状态", ""] + [
         f"- {s['scenario']}: {s['status']}，{s.get('seconds', '-')} 秒，峰值进程组 RSS {s.get('peakGroupRssBytes', 0) / GIB:.2f} GiB。"
