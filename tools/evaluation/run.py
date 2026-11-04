@@ -7,6 +7,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 JAR = ROOT / "java/iprange-bench/target/iprange-bench.jar"
 GIB = 1024**3
+ALGORITHMS = (
+    "binary",
+    "prefix16",
+    "prefix20",
+    "prefix16-24",
+    "interleaved4",
+    "interleaved8",
+    "prefix16-interleaved4",
+    "prefix16-interleaved8",
+    "eytzinger",
+)
 
 
 def available():
@@ -177,6 +188,29 @@ def expected_coverage(dataset):
     }
 
 
+def expected_algorithm_coverage(algorithms):
+    return {
+        (algorithm, path, b, c, mode, "real", 100)
+        for algorithm in algorithms
+        for path in ["rows", "utf8", "strings"]
+        for b in [1024, 4096, 65536]
+        for c in [1, 4, 8]
+        for mode in ["thrpt", "sample"]
+    }
+
+
+def algorithm_coverage_key(row):
+    return (
+        row["algorithm"],
+        row["path"],
+        row["batch"],
+        row["threads"],
+        row["mode"],
+        "synthetic" if row["dataset"].startswith("synthetic:") else "real",
+        int(row["hitRate"]),
+    )
+
+
 def report(directory):
     rows = []
     statuses = []
@@ -201,6 +235,11 @@ def report(directory):
             rows.append(
                 {
                     "scenario": path.parent.name,
+                    "algorithm": r["params"].get("algorithm", "legacy")
+                    if r["params"].get("algorithm", "legacy") != "legacy"
+                    else "prefix16"
+                    if r["params"]["prefix"] == "true"
+                    else "binary",
                     "path": r["benchmark"].rsplit(".", 1)[-1],
                     "mode": r["mode"],
                     "batch": batch,
@@ -228,7 +267,17 @@ def report(directory):
             if name not in present:
                 statuses.append({"scenario": name, "status": "not_run"})
     coverage = None
-    if manifest_path.exists() and manifest.get("matrixQuick"):
+    if manifest_path.exists() and manifest.get("algorithmsQuick"):
+        expected = expected_algorithm_coverage(manifest["algorithms"])
+        actual = {algorithm_coverage_key(row) for row in rows}
+        coverage = {
+            "expected": len(expected),
+            "actual": len(actual),
+            "missing": sorted(expected - actual),
+            "unexpected": sorted(actual - expected),
+            "duplicates": len(rows) - len(actual),
+        }
+    elif manifest_path.exists() and manifest.get("matrixQuick"):
         expected = expected_coverage(manifest["dataset"])
         actual = {
             coverage_key(
@@ -263,20 +312,20 @@ def report(directory):
         "# Java 性能评估结果",
         "\n全矩阵快速模式：1 次预热 + 1 次测量，各 1 秒；JMH forks=0，每进程复用快照，共享 JIT/GC 历史。仅作探索性比较，正式长测待运行。"
         if manifest_path.exists()
-        and json.loads(manifest_path.read_text()).get("matrixQuick")
+        and (manifest.get("matrixQuick") or manifest.get("algorithmsQuick"))
         else "",
         "",
         "Rust/JNI：not_implemented，尚无跨候选对比。",
         "",
         "吞吐包含结果消费；sample 延迟单位为秒/批次。尾延迟样本少于 10,000 时标为不足（P99 尾部不足约 100 个样本）；不宣称稳定。",
         "",
-        "| 场景 | 路径 | 模式 | B | C | 命中率 % | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| 场景 | 算法 | 路径 | 模式 | B | C | 命中率 % | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
+        "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for r in rows:
         val = r["ipPerSecond"] if r["ipPerSecond"] is not None else r["score"]
         lines.append(
-            f"| {r['scenario']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {r['hitRate']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'数量达标' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
+            f"| {r['scenario']} | {r['algorithm']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {r['hitRate']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'数量达标' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
         )
     lines += ["", "## 运行状态", ""] + [
         f"- {s['scenario']}: {s['status']}，{s.get('seconds', '-')} 秒，峰值进程组 RSS {s.get('peakGroupRssBytes', 0) / GIB:.2f} GiB。"
@@ -301,6 +350,17 @@ def main():
         action="store_true",
         help="全矩阵探索性测量：每进程共用快照，JMH forks=0",
     )
+    parser.add_argument(
+        "--algorithms-quick",
+        action="store_true",
+        help="9 种搜索策略的完整快速对照，或用 --algorithm 选择单一策略",
+    )
+    parser.add_argument(
+        "--verify-algorithms", action="store_true", help="一次加载后核验全部 Java 算法"
+    )
+    parser.add_argument(
+        "--algorithm", choices=["legacy", *ALGORITHMS], default="legacy"
+    )
     parser.add_argument("--oracle")
     parser.add_argument("--prefix", action="store_true", help="verify 时启用前缀目录")
     parser.add_argument("--only", help="只运行名称包含该文本的场景")
@@ -308,10 +368,18 @@ def main():
         "--resume", action="store_true", help="跳过同一目录中已通过的场景"
     )
     args = parser.parse_args()
-    if args.quick and args.matrix_quick:
-        parser.error("--quick 与 --matrix-quick 互斥")
-    if args.matrix_quick and args.only:
+    if sum([args.quick, args.matrix_quick, args.algorithms_quick]) > 1:
+        parser.error("三种快速模式互斥")
+    if (args.matrix_quick or args.algorithms_quick) and args.only:
         parser.error("全矩阵快速模式不接受 --only")
+    if args.matrix_quick and args.algorithm != "legacy":
+        parser.error("单独算法请使用 --algorithms-quick --algorithm")
+    if args.verify_algorithms and (
+        args.action != "verify" or args.prefix or args.algorithm != "legacy"
+    ):
+        parser.error("--verify-algorithms 仅用于 verify，且不接受单独算法/前缀参数")
+    if args.algorithms_quick and args.action != "benchmark":
+        parser.error("--algorithms-quick 仅用于 benchmark")
     if args.candidate == "rust-jni":
         parser.error("rust-jni: not_implemented")
     out = Path(
@@ -334,17 +402,33 @@ def main():
     if 'version "11.' not in version:
         parser.error("评估必须使用 JDK 11")
     digest = hashlib.file_digest(open(args.dataset, "rb"), "sha256").hexdigest()
+    selected_algorithms = (
+        list(ALGORITHMS) if args.algorithm == "legacy" else [args.algorithm]
+    )
+    selected_cases = [
+        c
+        for c in scenarios(args.dataset, args.quick)
+        if (not args.only or args.only in c[0])
+        and (args.algorithm == "legacy" or not c[0].startswith("prefix-"))
+    ]
     manifest = {
         "jarSha256": hashlib.file_digest(JAR.open("rb"), "sha256").hexdigest(),
         "plannedScenarios": ["verify"]
         if args.action == "verify"
+        else ["quick-algorithms"]
+        if args.algorithms_quick
         else ["quick-real", "quick-synthetic", "quick-prefix"]
         if args.matrix_quick
-        else [
-            c[0]
-            for c in scenarios(args.dataset, args.quick)
-            if not args.only or args.only in c[0]
-        ],
+        else [c[0] for c in selected_cases],
+        "algorithmsQuick": args.algorithms_quick,
+        "verifyAlgorithms": args.verify_algorithms,
+        "algorithm": args.algorithm,
+        "algorithms": selected_algorithms,
+        "oracleSha256": hashlib.file_digest(
+            open(args.oracle, "rb"), "sha256"
+        ).hexdigest()
+        if args.oracle
+        else None,
         "candidate": "java",
         "rust-jni": "not_implemented",
         "dataset": args.dataset,
@@ -375,6 +459,11 @@ def main():
             "jarSha256",
             "plannedScenarios",
             "matrixQuick",
+            "algorithmsQuick",
+            "verifyAlgorithms",
+            "algorithm",
+            "algorithms",
+            "oracleSha256",
         ]:
             if previous.get(key) != manifest.get(key):
                 parser.error("resume 参数/源码/数据不匹配: " + key)
@@ -390,15 +479,50 @@ def main():
             "-Xmx10g",
             "-cp",
             str(JAR),
-            "io.iploc.bench.VerifyMain",
+            "io.iploc.bench.VerifyAlgorithmsMain"
+            if args.verify_algorithms
+            else "io.iploc.bench.VerifyMain",
             args.dataset,
             str(Path(args.oracle).resolve()),
             str(args.prefix).lower(),
+            args.algorithm,
         ]
         result = guarded(command, out / "verify")
         print(json.dumps(result), flush=True)
         report(out)
         sys.exit(0 if result["status"] == "passed" else 1)
+    if args.algorithms_quick:
+        directory = out / "quick-algorithms"
+        if not (
+            args.resume
+            and (directory / "status.json").exists()
+            and json.loads((directory / "status.json").read_text())["status"]
+            == "passed"
+        ):
+            command = [
+                java,
+                "-Xmx10g",
+                "-Xms256m",
+                f"-Xlog:gc:file={directory}/gc-%p.log",
+                "-cp",
+                str(JAR),
+                "io.iploc.bench.QuickAlgorithmsMain",
+                args.dataset,
+                str(directory),
+                ",".join(selected_algorithms),
+            ]
+            print("START quick-algorithms", flush=True)
+            result = guarded(command, directory)
+            print(json.dumps(result), flush=True)
+            report(out)
+            if result["status"] != "passed":
+                sys.exit(1)
+        report(out)
+        coverage = json.loads((out / "summary.json").read_text())["coverage"]
+        if coverage["missing"] or coverage["unexpected"] or coverage["duplicates"]:
+            raise RuntimeError("算法快速矩阵覆盖不完整；详见 summary.json")
+        print("DONE " + str(out), flush=True)
+        return
     if args.matrix_quick:
         for group, dataset in [
             ("real", args.dataset),
@@ -438,7 +562,7 @@ def main():
             raise RuntimeError("快速矩阵覆盖不完整；详见 summary.json")
         print("DONE " + str(out), flush=True)
         return
-    for name, dataset, b, c, paths, prefix, hit in scenarios(args.dataset, args.quick):
+    for name, dataset, b, c, paths, prefix, hit in selected_cases:
         if args.only and args.only not in name:
             continue
         directory = out / name
@@ -462,6 +586,8 @@ def main():
             f"batch={b}",
             "-p",
             f"prefix={str(prefix).lower()}",
+            "-p",
+            f"algorithm={args.algorithm}",
             "-p",
             f"hitRate={hit}",
             "-t",

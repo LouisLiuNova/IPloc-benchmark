@@ -1,6 +1,6 @@
 # IPloc-benchmark
 
-比较同等布局的 Java / Rust IPv4 区间查询候选。主程序目标为 Java 11，真实数据约 3,230 万行。当前 Java 已实现，Rust/JNI 为 `not_implemented`；性能结果仅说明本机 Java 表现。完整快速矩阵已完成 128/128 个测量组合，见[实测结果](doc/Java全矩阵快速测量结果.md)；正式长测留待后续。
+比较同等布局的 Java / Rust IPv4 区间查询候选。主程序目标为 Java 11，真实数据约 3,230 万行。当前 Java 已实现，Rust/JNI 为 `not_implemented`；性能结果仅说明本机 Java 表现。新增算法对照已完成 **486/486** 个测量组合，见[算法实测结果](doc/Java搜索算法快速测量结果.md)；首轮 128 项结果见[历史实测](doc/Java全矩阵快速测量结果.md)。正式长测留待后续。
 
 ## 工程与构建
 
@@ -18,6 +18,12 @@
 ```
 
 Maven Wrapper 固定为 3.9.11 并校验分发包 SHA-256，构建固定 `--release 11`。默认 Wrapper 与依赖缓存位于 `/tmp`，可通过 `IPLOC_MAVEN_HOME`、`IPLOC_MAVEN_REPO` 调整。不要使用默认 Java 版本代替 JDK 11。Linux CI 只运行构建及小数据校验，不运行本机性能矩阵。
+
+## 新增搜索策略
+
+已加入不同位数／两级前缀目录、4/8 路交错二分及 Eytzinger，包含基础和组合对照共 9 个策略。使用 `open(path, SearchAlgorithm.PREFIX_20)` 或 `base.withAlgorithm(SearchAlgorithm.EYTZINGER)` 选择；旧接口及默认二分保持兼容。
+
+实现边界、共享视图生命周期和完整算法矩阵命令见 [Java 搜索算法候选](doc/Java搜索算法候选.md)。`benchmark --algorithms-quick` 覆盖 486 项；`verify --verify-algorithms` 一次加载后核验全部策略。新增算法结果见[本轮独立报告](doc/Java搜索算法快速测量结果.md)，不与此前 128 项短测直接混比。
 
 ## 使用示例
 

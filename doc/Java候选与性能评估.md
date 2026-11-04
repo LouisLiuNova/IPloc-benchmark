@@ -2,6 +2,8 @@
 
 日期：2026-11-04。范围：独立分支开发、分步提交，经 PR 合并至 main；main 中并列维护候选目录。Java 已实现；Rust/JNI 仅预留工程，不生成成绩。
 
+后续新增三类 Java 搜索算法及完整对照见[算法说明](./Java搜索算法候选.md)和[486 项结果报告](./Java搜索算法快速测量结果.md)。本文保留首轮 128 项评估的方法与范围。
+
 ## 实现与依据
 
 复用 Apache Parquet Java 1.17.1 的本地文件、列投影和 RecordMaterializer 接口，自研范围限于业务校验、连续边界数组、分块载荷和批量契约；不实现解码器、通用 SQL 或区间树。官方源码及 Java 11 构建约束见 [Parquet Java](https://github.com/apache/parquet-java/tree/apache-parquet-1.17.1)。微基准采用 [OpenJDK JMH](https://github.com/openjdk/jmh)，不自建吞吐计时循环。

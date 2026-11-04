@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.iploc.api.*;
 import io.iploc.java.JavaIpRangeSnapshot;
+import io.iploc.java.SearchAlgorithm;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -181,8 +182,8 @@ class PrefixContractTest extends SnapshotContract {
 class SyntheticTest {
   @Test
   void arithmeticOracle() {
-    for (boolean prefix : new boolean[] {false, true}) {
-      try (IpRangeSnapshot s = JavaIpRangeSnapshot.synthetic(1000, prefix)) {
+    for (SearchAlgorithm algorithm : SearchAlgorithm.values()) {
+      try (IpRangeSnapshot s = JavaIpRangeSnapshot.synthetic(1000, algorithm)) {
         int[] ips = new int[10000];
         long[] rows = new long[ips.length];
         Random random = new Random(20261104L);
@@ -192,5 +193,142 @@ class SyntheticTest {
           assertEquals(ips[i] / 256 < 1000 && ips[i] % 256 < 128 ? ips[i] / 256 : -1, rows[i]);
       }
     }
+  }
+}
+
+class Prefix20ContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.PREFIX_20);
+  }
+}
+
+class TwoLevelContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.PREFIX_TWO_LEVEL);
+  }
+}
+
+class Interleaved4ContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.INTERLEAVED_4);
+  }
+}
+
+class Interleaved8ContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.INTERLEAVED_8);
+  }
+}
+
+class PrefixInterleaved4ContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.PREFIX_16_INTERLEAVED_4);
+  }
+}
+
+class PrefixInterleaved8ContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.PREFIX_16_INTERLEAVED_8);
+  }
+}
+
+class EytzingerContractTest extends SnapshotContract {
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return JavaIpRangeSnapshot.open(p, SearchAlgorithm.EYTZINGER);
+  }
+}
+
+class AlgorithmEdgeCasesTest {
+  @Test
+  void denseBucketsAndEveryLaneTail() throws Exception {
+    try (JavaIpRangeSnapshot base =
+        JavaIpRangeSnapshot.open(Path.of("../../tests/fixtures/chunks.parquet"))) {
+      for (SearchAlgorithm algorithm : SearchAlgorithm.values()) {
+        try (JavaIpRangeSnapshot view = base.withAlgorithm(algorithm)) {
+          Random random = new Random(20261104);
+          int[] ips = new int[5003];
+          long[] rows = new long[5008];
+          for (int i = 0; i < ips.length; i++) ips[i] = random.nextInt(100000);
+          ips[0] = 255;
+          ips[1] = 256;
+          ips[2] = 65535;
+          ips[3] = 65536;
+          ips[4] = -1;
+          for (int length : new int[] {0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 4999}) {
+            Arrays.fill(rows, Long.MIN_VALUE);
+            view.lookupBatch(ips, 1, length, rows, 3);
+            assertEquals(Long.MIN_VALUE, rows[2]);
+            assertEquals(Long.MIN_VALUE, rows[length + 3]);
+            for (int j = 0; j < length; j++)
+              assertEquals(
+                  Integer.toUnsignedLong(ips[1 + j]) < 65538 ? ips[1 + j] : -1,
+                  rows[3 + j],
+                  algorithm.id() + " lane=" + j);
+          }
+        }
+      }
+    }
+  }
+
+  @Test
+  void treeSizesAndSparseUnsignedInputs() {
+    for (int n : new int[] {0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33, 257, 1025}) {
+      try (JavaIpRangeSnapshot base = JavaIpRangeSnapshot.synthetic(n, false)) {
+        for (SearchAlgorithm algorithm : SearchAlgorithm.values()) {
+          try (JavaIpRangeSnapshot view = base.withAlgorithm(algorithm)) {
+            int[] ips = {
+              0, 127, 128, 255, 256, (n - 1) * 256, n * 256 - 1, n * 256, Integer.MIN_VALUE, -1
+            };
+            long[] rows = new long[ips.length];
+            view.lookupBatch(ips, 0, ips.length, rows, 0);
+            for (int j = 0; j < ips.length; j++) {
+              long v = Integer.toUnsignedLong(ips[j]);
+              long expected = v / 256 < n && v % 256 < 128 ? v / 256 : -1;
+              assertEquals(expected, rows[j], algorithm.id() + " n=" + n + " ip=" + v);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Test
+  void viewsHaveIndependentLifetime() {
+    JavaIpRangeSnapshot base = JavaIpRangeSnapshot.synthetic(100, false);
+    List<JavaIpRangeSnapshot> views = new ArrayList<>();
+    String version = base.datasetVersion();
+    for (SearchAlgorithm algorithm : SearchAlgorithm.values())
+      views.add(base.withAlgorithm(algorithm));
+    base.close();
+    PayloadBatch retained = null;
+    try {
+      for (JavaIpRangeSnapshot view : views) {
+        assertEquals(version, view.datasetVersion());
+        long[] rows = new long[2];
+        view.lookupBatch(new int[] {10 * 256, 10 * 256 + 200}, 0, 2, rows, 0);
+        assertArrayEquals(new long[] {10, -1}, rows);
+        retained = view.fetchBatch(rows, 0, 2);
+        view.close();
+      }
+      assertEquals("synthetic-country", retained.columns[0].stringAt(0));
+      assertThrows(
+          IllegalStateException.class, () -> base.withAlgorithm(SearchAlgorithm.EYTZINGER));
+    } finally {
+      for (JavaIpRangeSnapshot view : views) view.close();
+    }
+  }
+
+  @Test
+  void unknownStrategyFails() {
+    assertThrows(IllegalArgumentException.class, () -> SearchAlgorithm.fromId("unknown"));
+    assertThrows(
+        NullPointerException.class, () -> JavaIpRangeSnapshot.synthetic(1, (SearchAlgorithm) null));
   }
 }
