@@ -2,6 +2,7 @@ package io.iploc.bench;
 
 import io.iploc.api.IpRangeSnapshot;
 import io.iploc.java.JavaIpRangeSnapshot;
+import io.iploc.java.SearchAlgorithm;
 import java.nio.file.Path;
 
 public final class Candidates {
@@ -9,13 +10,25 @@ public final class Candidates {
 
   public static IpRangeSnapshot open(String candidate, String dataset, boolean prefix)
       throws Exception {
+    return open(candidate, dataset, "legacy", prefix);
+  }
+
+  public static SearchAlgorithm algorithm(String id, boolean prefix) {
+    return "legacy".equals(id)
+        ? (prefix ? SearchAlgorithm.PREFIX_16 : SearchAlgorithm.BINARY)
+        : SearchAlgorithm.fromId(id);
+  }
+
+  public static IpRangeSnapshot open(
+      String candidate, String dataset, String algorithm, boolean prefix) throws Exception {
+    SearchAlgorithm selected = algorithm(algorithm, prefix);
     if (!candidate.equals("java"))
       throw new IllegalArgumentException(candidate + ": not_implemented");
     long started = System.nanoTime();
     IpRangeSnapshot result =
         dataset.startsWith("synthetic:")
-            ? JavaIpRangeSnapshot.synthetic(Integer.parseInt(dataset.substring(10)), prefix)
-            : JavaIpRangeSnapshot.open(Path.of(dataset), prefix);
+            ? JavaIpRangeSnapshot.synthetic(Integer.parseInt(dataset.substring(10)), selected)
+            : JavaIpRangeSnapshot.open(Path.of(dataset), selected);
     System.err.println(
         "LOAD rows="
             + result.rowCount()

@@ -110,6 +110,29 @@ class RunnerTests(unittest.TestCase):
             self.assertTrue(all(r["p50"] is None for r in results))
             self.assertIn("| 4096 | 1 | 90 |", (root / "report.md").read_text())
 
+    def test_algorithm_coverage_and_legacy_reports(self):
+        self.assertEqual(486, len(run.expected_algorithm_coverage(run.ALGORITHMS)))
+        self.assertEqual(54, len(run.expected_algorithm_coverage(["eytzinger"])))
+        self.assertEqual(9, len(set(run.ALGORITHMS)))
+        row = {
+            "algorithm": "prefix20",
+            "path": "rows",
+            "batch": 4096,
+            "threads": 4,
+            "mode": "thrpt",
+            "dataset": "input.parquet",
+            "hitRate": "100",
+        }
+        self.assertIn(
+            run.algorithm_coverage_key(row),
+            run.expected_algorithm_coverage(run.ALGORITHMS),
+        )
+        row["dataset"] = "synthetic:10000000"
+        self.assertNotIn(
+            run.algorithm_coverage_key(row),
+            run.expected_algorithm_coverage(run.ALGORITHMS),
+        )
+
     def test_matrix(self):
         cases = run.scenarios("real", False)
         self.assertEqual(28, len(cases))
