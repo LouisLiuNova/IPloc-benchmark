@@ -5,11 +5,22 @@ import io.iploc.rust.RustIpRangeSnapshot;
 import java.nio.file.Path;
 
 class RustContractTest extends SnapshotContract {
-  @Override IpRangeSnapshot open(Path p) throws Exception { return RustIpRangeSnapshot.open(p); }
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return RustIpRangeSnapshot.open(p);
+  }
 }
+
 class RustPrefix16ContractTest extends SnapshotContract {
-  @Override IpRangeSnapshot open(Path p) throws Exception { return RustIpRangeSnapshot.open(p, "prefix16"); }
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return RustIpRangeSnapshot.open(p, "prefix16");
+  }
 }
+
 class RustPrefix20ContractTest extends SnapshotContract {
-  @Override IpRangeSnapshot open(Path p) throws Exception { return RustIpRangeSnapshot.open(p, "prefix20"); }
+  @Override
+  IpRangeSnapshot open(Path p) throws Exception {
+    return RustIpRangeSnapshot.open(p, "prefix20");
+  }
 }

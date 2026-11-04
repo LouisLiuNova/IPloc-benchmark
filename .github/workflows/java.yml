@@ -1,7 +1,7 @@
 name: Java 候选校验
 on:
   push:
-    branches: [main, 'feat/**']
+    branches: [main, 'feat/**', 'codex/**']
   pull_request:
 permissions:
   contents: read
@@ -16,6 +16,34 @@ jobs:
           java-version: '11'
       - name: 构建与契约测试
         run: IPLOC_JDK_HOME="$JAVA_HOME" tools/evaluation/build.sh -B verify
+      - name: 评估运行器测试
+        working-directory: tools/evaluation
+        run: python3 -m unittest -v test_runner
+
+  rust-jni:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: 安装固定 Rust 工具链
+        working-directory: rust
+        run: rustup show active-toolchain
+      - name: Rust 静态检查与单元测试
+        working-directory: rust
+        run: |
+          cargo fmt --check
+          cargo clippy --locked --workspace --all-targets -- -D warnings
+          cargo test --locked --workspace
+      - name: JDK 11 JNI 构建与共用契约
+        run: IPLOC_JDK_HOME="$JAVA_HOME" tools/evaluation/build.sh -B -Prust-jni verify
+      - name: 小数据 JNI 真实运行
+        run: |
+          python3 tools/evaluation/run.py verify --candidate all --algorithm binary \
+            --jdk "$JAVA_HOME" --dataset tests/fixtures/valid.parquet \
+            --oracle tests/fixtures/valid-oracle.tsv --output benchmark-results/ci-verify
       - name: 评估运行器测试
         working-directory: tools/evaluation
         run: python3 -m unittest -v test_runner

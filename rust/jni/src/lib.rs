@@ -65,13 +65,17 @@ fn acquire(id: i64) -> Result<Arc<Snapshot>> {
         })
 }
 fn close(id: i64) -> Result<()> {
-    registry()
-        .lock()
-        .map_err(|_| error("java/lang/IllegalStateException", "Registry poisoned"))?
-        .entries
-        .remove(&id);
+    let removed = {
+        let mut r = registry()
+            .lock()
+            .map_err(|_| error("java/lang/IllegalStateException", "Registry poisoned"))?;
+        r.entries.remove(&id)
+    };
+    // 大快照析构在注册表锁之外，避免阻塞其他句柄的查询。
+    drop(removed);
     Ok(())
 }
+
 fn boundary<T: Default>(env: &mut JNIEnv, f: impl FnOnce(&mut JNIEnv) -> Result<T>) -> T {
     let result = catch_unwind(AssertUnwindSafe(|| f(env)));
     match result {
@@ -116,6 +120,15 @@ fn range(
 fn algorithm(env: &mut JNIEnv, value: JString) -> Result<Algorithm> {
     let id: String = env.get_string(&value)?.into();
     Algorithm::parse(&id).map_err(|e| error("java/lang/IllegalArgumentException", e))
+}
+#[no_mangle]
+pub extern "system" fn Java_io_iploc_rust_NativeBridge_buildInfo(
+    mut env: JNIEnv,
+    _: JClass,
+) -> jobject {
+    boundary(&mut env, |env| {
+        Ok(env.new_string(env!("IPLOC_BUILD_INFO"))?.into_raw())
+    })
 }
 #[no_mangle]
 pub extern "system" fn Java_io_iploc_rust_NativeBridge_abiVersion(

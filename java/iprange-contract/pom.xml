@@ -21,8 +21,11 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+  <properties><contract.test.directory>test-classes</contract.test.directory></properties>
+  <build><testOutputDirectory>${project.build.directory}/${contract.test.directory}</testOutputDirectory></build>
   <profiles><profile><id>rust-jni</id>
     <dependencies><dependency><groupId>io.iploc</groupId><artifactId>iprange-rust</artifactId><version>${project.version}</version></dependency></dependencies>
+    <properties><contract.test.directory>rust-test-classes</contract.test.directory></properties>
     <build><plugins>
       <plugin><groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId><version>3.6.1</version>
         <executions><execution><id>rust-contract</id><phase>generate-test-sources</phase><goals><goal>add-test-source</goal></goals><configuration><sources><source>src/rust-test/java</source></sources></configuration></execution></executions>

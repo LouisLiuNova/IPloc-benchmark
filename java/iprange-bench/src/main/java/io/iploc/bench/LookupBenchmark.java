@@ -1,7 +1,6 @@
 package io.iploc.bench;
 
 import io.iploc.api.*;
-import io.iploc.java.JavaIpRangeSnapshot;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.*;
@@ -44,12 +43,15 @@ public class LookupBenchmark {
           quickSnapshot == null
               ? Candidates.open(candidate, dataset, algorithm, prefix)
               : quickSnapshot;
-      if (snapshot instanceof JavaIpRangeSnapshot
-          && ((JavaIpRangeSnapshot) snapshot).algorithm()
-              != Candidates.algorithm(algorithm, prefix))
+      if (!CandidateSnapshot.algorithm(snapshot)
+          .equals(Candidates.algorithm(algorithm, prefix).id()))
         throw new IllegalArgumentException(
             "Quick snapshot algorithm does not match JMH parameters");
-      ips = new int[1_000_000];
+      ips = queries(snapshot, dataset, hitRate);
+    }
+
+    static int[] queries(IpRangeSnapshot snapshot, String dataset, int hitRate) {
+      int[] ips = new int[1_000_000];
       Random random = new Random(20261104L);
       for (int i = 0; i < ips.length; i++) {
         if (dataset.startsWith("synthetic:")) {
@@ -58,6 +60,7 @@ public class LookupBenchmark {
               (row << 8) + (i % 100 < hitRate ? random.nextInt(128) : 128 + random.nextInt(128));
         } else ips[i] = random.nextInt();
       }
+      return ips;
     }
 
     @TearDown(Level.Trial)
