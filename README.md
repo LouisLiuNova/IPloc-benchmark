@@ -19,6 +19,12 @@
 
 Maven Wrapper 固定为 3.9.11 并校验分发包 SHA-256，构建固定 `--release 11`。默认 Wrapper 与依赖缓存位于 `/tmp`，可通过 `IPLOC_MAVEN_HOME`、`IPLOC_MAVEN_REPO` 调整。不要使用默认 Java 版本代替 JDK 11。Linux CI 只运行构建及小数据校验，不运行本机性能矩阵。
 
+## 新增搜索策略
+
+已加入不同位数／两级前缀目录、4/8 路交错二分及 Eytzinger，包含基础和组合对照共 9 个策略。使用 `open(path, SearchAlgorithm.PREFIX_20)` 或 `base.withAlgorithm(SearchAlgorithm.EYTZINGER)` 选择；旧接口及默认二分保持兼容。
+
+实现边界、共享视图生命周期和完整算法矩阵命令见 [Java 搜索算法候选](doc/Java搜索算法候选.md)。`benchmark --algorithms-quick` 覆盖 486 项；`verify --verify-algorithms` 一次加载后核验全部策略。新增算法的结果以本轮独立报告为准，不与此前 128 项短测直接混比。
+
 ## 使用示例
 
 ```java

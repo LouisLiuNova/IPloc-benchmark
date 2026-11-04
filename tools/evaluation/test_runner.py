@@ -108,6 +108,7 @@ class RunnerTests(unittest.TestCase):
             results = run.report(root)
             self.assertEqual(["0", "90"], [r["hitRate"] for r in results])
             self.assertTrue(all(r["p50"] is None for r in results))
+            self.assertTrue(all(r["algorithm"] == "binary" for r in results))
             self.assertIn("| 4096 | 1 | 90 |", (root / "report.md").read_text())
 
     def test_algorithm_coverage_and_legacy_reports(self):
