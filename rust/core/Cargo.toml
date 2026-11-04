@@ -1,0 +1,10 @@
+[package]
+name = "iprange-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+arrow-array = "=59.2.0"
+parquet = { version = "=59.2.0", default-features = false, features = ["arrow", "snap"] }
+sha2 = "0.10"
