@@ -22,13 +22,15 @@ public final class Candidates {
   public static IpRangeSnapshot open(
       String candidate, String dataset, String algorithm, boolean prefix) throws Exception {
     SearchAlgorithm selected = algorithm(algorithm, prefix);
-    if (!candidate.equals("java"))
-      throw new IllegalArgumentException(candidate + ": not_implemented");
+    if (!candidate.equals("java") && !candidate.equals("rust-jni"))
+      throw new IllegalArgumentException("Unknown candidate: " + candidate);
     long started = System.nanoTime();
     IpRangeSnapshot result =
-        dataset.startsWith("synthetic:")
-            ? JavaIpRangeSnapshot.synthetic(Integer.parseInt(dataset.substring(10)), selected)
-            : JavaIpRangeSnapshot.open(Path.of(dataset), selected);
+        candidate.equals("rust-jni")
+            ? CandidateSnapshot.rust(dataset, selected.id())
+            : dataset.startsWith("synthetic:")
+                ? JavaIpRangeSnapshot.synthetic(Integer.parseInt(dataset.substring(10)), selected)
+                : JavaIpRangeSnapshot.open(Path.of(dataset), selected);
     System.err.println(
         "LOAD rows="
             + result.rowCount()

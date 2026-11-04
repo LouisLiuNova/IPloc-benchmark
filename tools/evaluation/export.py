@@ -54,7 +54,8 @@ def export(source, prefix):
         )
         resources[entry["scenario"]] = (directory / "resources.csv").read_text()
         index_stats.extend(
-            json.loads(p.read_text()) for p in sorted(directory.glob("index-*.json"))
+            {"scenario": entry["scenario"], **json.loads(p.read_text())}
+            for p in sorted(directory.glob("index-*.json"))
         )
         if (directory / "order.txt").exists():
             order = (directory / "order.txt").read_text()
@@ -70,9 +71,15 @@ def export(source, prefix):
         for result in json.loads(path.read_text()):
             result["jvm"] = "<JDK11>/bin/java"
             result["jvmArgs"] = [
-                "-Xlog:gc:file=<run-dir>/gc-%p.log"
-                if a.startswith("-Xlog:gc:file=")
-                else a
+                (
+                    "-Xlog:gc:file=<run-dir>/gc-%p.log"
+                    if a.startswith("-Xlog:gc:file=")
+                    else (
+                        "-Diploc.native.path=<native-library>"
+                        if a.startswith("-Diploc.native.path=")
+                        else a
+                    )
+                )
                 for a in result.get("jvmArgs", [])
             ]
             if not result["params"]["dataset"].startswith("synthetic:"):
@@ -92,7 +99,18 @@ def export(source, prefix):
         "datasetSha256": manifest["sha256"],
         "seed": manifest["seed"],
         "queryPool": manifest["queryPool"],
-        "mode": "exploratory-non-forked-shared-snapshot",
+        "mode": (
+            "exploratory-non-forked-per-candidate-algorithm-process"
+            if manifest.get("crossCandidate")
+            else "exploratory-non-forked-shared-snapshot"
+        ),
+        "candidates": manifest.get("candidates", ["java"]),
+        "candidateAlgorithmOrder": manifest.get("order"),
+        "nativeSha256": manifest.get("nativeSha256"),
+        "rustToolchain": manifest.get("rustToolchain"),
+        "cargoLockSha256": manifest.get("cargoLockSha256"),
+        "build": manifest.get("build"),
+        "querySha256": manifest.get("querySha256"),
         "warmup": "1 x 1 second",
         "measurement": "1 x 1 second",
         "jdk": manifest["jdk"],

@@ -26,6 +26,9 @@
       <scope>provided</scope>
     </dependency>
   </dependencies>
+  <profiles><profile><id>rust-jni</id><dependencies><dependency>
+    <groupId>io.iploc</groupId><artifactId>iprange-rust</artifactId><version>${project.version}</version>
+  </dependency></dependencies></profile></profiles>
   <build>
     <plugins>
       <plugin>

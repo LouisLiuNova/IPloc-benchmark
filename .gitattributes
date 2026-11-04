@@ -1,0 +1,2 @@
+# TSV oracle 的末尾空字段是有效载荷，不是多余空白。
+tests/fixtures/*-oracle.tsv whitespace=-blank-at-eol

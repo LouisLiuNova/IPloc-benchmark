@@ -67,6 +67,20 @@ def main():
     )
     t = pq.read_table(out / "valid.parquet")
     pq.write_table(t.drop(["country"]), out / "missing.parquet")
+    # schema 和解码批次负例，两种候选必须共同拒绝。
+    pq.write_table(t.append_column("country", t["country"]), out / "duplicate.parquet")
+    nested = t.set_column(2, "country", pa.array([{"value": "x"}] * 4))
+    pq.write_table(nested, out / "nested.parquet")
+    bad = list(range(65538))
+    bad[65536] = 65535
+    columns = {
+        "start_ip_int": pa.array(bad, pa.int64()),
+        "end_ip_int": pa.array(bad, pa.int64()),
+    }
+    columns.update({f: pa.array(["x"] * len(bad)) for f in FIELDS})
+    pq.write_table(
+        pa.table(columns), out / "cross-batch.parquet", row_group_size=100000
+    )
     # 跨内部块并跨 Row Group；保持 fixture 较小。
     n = 65538
     values = {

@@ -1,0 +1,585 @@
+{
+  "sourceCommit": "4cc85f7442343bdffa839bfda9807fd68437fab6",
+  "date": "2026-11-04",
+  "automatedChecks": {
+    "defaultJavaContractTests": 59,
+    "nativeProfileContractTests": 77,
+    "nativeBoundaryTests": 3,
+    "rustCoreTests": 3,
+    "rustLifecycleTests": 1,
+    "pythonRunnerTests": 13,
+    "clippyWarnings": 0,
+    "jniChecks": "-Xcheck:jni"
+  },
+  "ci": {
+    "url": "https://github.com/LouisLiuNova/IPloc-benchmark/actions/runs/41793786546",
+    "java": "success",
+    "rust-jni": "success"
+  },
+  "runs": {
+    "rust-synthetic-verify": {
+      "manifest": {
+        "crossCandidate": true,
+        "action": "synthetic",
+        "candidates": [
+          "java",
+          "rust-jni"
+        ],
+        "algorithms": [
+          "binary",
+          "prefix16",
+          "prefix20"
+        ],
+        "plannedScenarios": [
+          "java-prefix16",
+          "rust-jni-prefix16",
+          "rust-jni-binary",
+          "java-binary",
+          "java-prefix20",
+          "rust-jni-prefix20"
+        ],
+        "order": [
+          [
+            "java",
+            "prefix16"
+          ],
+          [
+            "rust-jni",
+            "prefix16"
+          ],
+          [
+            "rust-jni",
+            "binary"
+          ],
+          [
+            "java",
+            "binary"
+          ],
+          [
+            "java",
+            "prefix20"
+          ],
+          [
+            "rust-jni",
+            "prefix20"
+          ]
+        ],
+        "algorithmsQuick": false,
+        "quick": false,
+        "sha256": "synthetic-v1-10000000",
+        "oracleSha256": null,
+        "jarSha256": "54a20516f3646f5706a5081ca923974093aa8dc7cdb7f8ae9a5a5b52f0964088",
+        "nativeSha256": "42b331a290fe25599d8cb0a90c772a679eafa0fa141cb288307491b2f7cd6779",
+        "rustToolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "cargoLockSha256": "6cde7cf75c612dbf09db6341aa9ea33c512144344eceb1b3e0fc191684701920",
+        "build": {
+          "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+          "target": "x86_64-unknown-linux-gnu",
+          "profile": "release",
+          "encodedRustflagsHex": ""
+        },
+        "toolchainFileSha256": "d13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33",
+        "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+        "git": "4cc85f7442343bdffa839bfda9807fd68437fab6",
+        "jdk": "openjdk version \"11.0.32.1\" 2026-08-18\nOpenJDK Runtime Environment (build 11.0.32.1+1-post-1ubuntu1-24.04-Ubuntu)\nOpenJDK 64-Bit Server VM (build 11.0.32.1+1-post-1ubuntu1-24.04-Ubuntu, mixed mode, sharing)\n",
+        "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+        "cpuCount": 16,
+        "seed": 20261104,
+        "queryPool": 1000000
+      },
+      "dataset": "synthetic:10000000",
+      "measurementCount": 0,
+      "results": [
+        {
+          "scenario": "java-binary",
+          "status": "passed",
+          "seconds": 5.004,
+          "peakGroupRssBytes": 3105017856,
+          "consoleSha256": "3eb14c88149c8f5f8abb39257aaa935c39ab5035eba4422d8688e749d35fef4f",
+          "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+          "verifiedRealSamples": [],
+          "synthetic": [
+            {
+              "queries": 1000000,
+              "hitRate": 0,
+              "matched": 0
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 50,
+              "matched": 500000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 90,
+              "matched": 900000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 100,
+              "matched": 1000000
+            }
+          ]
+        },
+        {
+          "scenario": "java-prefix16",
+          "status": "passed",
+          "seconds": 4.004,
+          "peakGroupRssBytes": 3134279680,
+          "consoleSha256": "bcbb77f5553961b3aee219527f3d842df1efd94c15696dc814f6ff4b06a28568",
+          "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+          "verifiedRealSamples": [],
+          "synthetic": [
+            {
+              "queries": 1000000,
+              "hitRate": 0,
+              "matched": 0
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 50,
+              "matched": 500000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 90,
+              "matched": 900000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 100,
+              "matched": 1000000
+            }
+          ]
+        },
+        {
+          "scenario": "java-prefix20",
+          "status": "passed",
+          "seconds": 4.004,
+          "peakGroupRssBytes": 2993594368,
+          "consoleSha256": "da456597482e1d52e2b05f26bfa1a91ffa8232bd34b8252ca9304f485c6858d0",
+          "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+          "verifiedRealSamples": [],
+          "synthetic": [
+            {
+              "queries": 1000000,
+              "hitRate": 0,
+              "matched": 0
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 50,
+              "matched": 500000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 90,
+              "matched": 900000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 100,
+              "matched": 1000000
+            }
+          ]
+        },
+        {
+          "scenario": "rust-jni-binary",
+          "status": "passed",
+          "seconds": 4.003,
+          "peakGroupRssBytes": 1807949824,
+          "consoleSha256": "927860fbd1c9f1854f6297f5671c0f7341fa0f4df85a4f39d10c5bb166bd02ec",
+          "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+          "verifiedRealSamples": [],
+          "synthetic": [
+            {
+              "queries": 1000000,
+              "hitRate": 0,
+              "matched": 0
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 50,
+              "matched": 500000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 90,
+              "matched": 900000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 100,
+              "matched": 1000000
+            }
+          ]
+        },
+        {
+          "scenario": "rust-jni-prefix16",
+          "status": "passed",
+          "seconds": 3.002,
+          "peakGroupRssBytes": 1845551104,
+          "consoleSha256": "8466300e22c0d6517bc5a4b3fa00ee4c09cc76b3e14af8e97c47731f1fc0a27a",
+          "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+          "verifiedRealSamples": [],
+          "synthetic": [
+            {
+              "queries": 1000000,
+              "hitRate": 0,
+              "matched": 0
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 50,
+              "matched": 500000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 90,
+              "matched": 900000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 100,
+              "matched": 1000000
+            }
+          ]
+        },
+        {
+          "scenario": "rust-jni-prefix20",
+          "status": "passed",
+          "seconds": 3.002,
+          "peakGroupRssBytes": 1891520512,
+          "consoleSha256": "588d8e5cb23bbaade72afedacd38476fb0264a52f0629845c9ebf50c28139c39",
+          "querySha256": "f3d05c97f4b29ed34b60012dac19cb064301e2b7c918ecf68857ffc5f7bd822d",
+          "verifiedRealSamples": [],
+          "synthetic": [
+            {
+              "queries": 1000000,
+              "hitRate": 0,
+              "matched": 0
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 50,
+              "matched": 500000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 90,
+              "matched": 900000
+            },
+            {
+              "queries": 1000000,
+              "hitRate": 100,
+              "matched": 1000000
+            }
+          ]
+        }
+      ]
+    },
+    "rust-real-verify": {
+      "manifest": {
+        "crossCandidate": true,
+        "action": "verify",
+        "candidates": [
+          "java",
+          "rust-jni"
+        ],
+        "algorithms": [
+          "binary",
+          "prefix16",
+          "prefix20"
+        ],
+        "plannedScenarios": [
+          "java-prefix16",
+          "rust-jni-prefix16",
+          "rust-jni-binary",
+          "java-binary",
+          "java-prefix20",
+          "rust-jni-prefix20"
+        ],
+        "order": [
+          [
+            "java",
+            "prefix16"
+          ],
+          [
+            "rust-jni",
+            "prefix16"
+          ],
+          [
+            "rust-jni",
+            "binary"
+          ],
+          [
+            "java",
+            "binary"
+          ],
+          [
+            "java",
+            "prefix20"
+          ],
+          [
+            "rust-jni",
+            "prefix20"
+          ]
+        ],
+        "algorithmsQuick": false,
+        "quick": false,
+        "sha256": "53defbfb94785be2fa064d42cf85ab26de8a8fa88bf9cd1d5c2c587a77f1b7da",
+        "oracleSha256": "5d727d572224bd38b241c7a101617e9a0bb7dc9f80ef3cc4d179fd92082cb0fb",
+        "jarSha256": "54a20516f3646f5706a5081ca923974093aa8dc7cdb7f8ae9a5a5b52f0964088",
+        "nativeSha256": "42b331a290fe25599d8cb0a90c772a679eafa0fa141cb288307491b2f7cd6779",
+        "rustToolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "cargoLockSha256": "6cde7cf75c612dbf09db6341aa9ea33c512144344eceb1b3e0fc191684701920",
+        "build": {
+          "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+          "target": "x86_64-unknown-linux-gnu",
+          "profile": "release",
+          "encodedRustflagsHex": ""
+        },
+        "toolchainFileSha256": "d13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33",
+        "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+        "git": "4cc85f7442343bdffa839bfda9807fd68437fab6",
+        "jdk": "openjdk version \"11.0.32.1\" 2026-08-18\nOpenJDK Runtime Environment (build 11.0.32.1+1-post-1ubuntu1-24.04-Ubuntu)\nOpenJDK 64-Bit Server VM (build 11.0.32.1+1-post-1ubuntu1-24.04-Ubuntu, mixed mode, sharing)\n",
+        "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+        "cpuCount": 16,
+        "seed": 20261104,
+        "queryPool": 1000000
+      },
+      "dataset": "iploc.parquet",
+      "measurementCount": 0,
+      "results": [
+        {
+          "scenario": "java-binary",
+          "status": "passed",
+          "seconds": 28.022,
+          "peakGroupRssBytes": 10070716416,
+          "consoleSha256": "dd257d54892c2743146b09f0a911fcf330f643b2415ab316b37497fb67e36e11",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [
+            5171
+          ],
+          "synthetic": []
+        },
+        {
+          "scenario": "java-prefix16",
+          "status": "passed",
+          "seconds": 26.019,
+          "peakGroupRssBytes": 9933393920,
+          "consoleSha256": "e6bb24bee7c3faeea25a28397280b0d589b91c5c992af0bc36a86863763fb29f",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [
+            5171
+          ],
+          "synthetic": []
+        },
+        {
+          "scenario": "java-prefix20",
+          "status": "passed",
+          "seconds": 31.04,
+          "peakGroupRssBytes": 9846804480,
+          "consoleSha256": "f0754b1fb49fd9184b166e83205a403b65df74df204a2294ba6a8cc94efef4aa",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [
+            5171
+          ],
+          "synthetic": []
+        },
+        {
+          "scenario": "rust-jni-binary",
+          "status": "passed",
+          "seconds": 10.006,
+          "peakGroupRssBytes": 4542164992,
+          "consoleSha256": "cad256aeaa22b8720963032eedf82ca7937dfd85f81fc479f22d8e3e350f48e3",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [
+            5171
+          ],
+          "synthetic": []
+        },
+        {
+          "scenario": "rust-jni-prefix16",
+          "status": "passed",
+          "seconds": 10.008,
+          "peakGroupRssBytes": 4644151296,
+          "consoleSha256": "4b66b64c2ddb03fd00000c3af08bd89180a244008b5a1bdd27ecbc9f6e7d2e7d",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [
+            5171
+          ],
+          "synthetic": []
+        },
+        {
+          "scenario": "rust-jni-prefix20",
+          "status": "passed",
+          "seconds": 10.011,
+          "peakGroupRssBytes": 4648906752,
+          "consoleSha256": "77c24f3f8a6aaa6aa8f9c450220dbb2b40734b79858f4447f4036428d93e5efc",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [
+            5171
+          ],
+          "synthetic": []
+        }
+      ]
+    },
+    "rust-preflight": {
+      "manifest": {
+        "crossCandidate": true,
+        "action": "preflight",
+        "candidates": [
+          "java",
+          "rust-jni"
+        ],
+        "algorithms": [
+          "binary",
+          "prefix16",
+          "prefix20"
+        ],
+        "plannedScenarios": [
+          "java-prefix16",
+          "rust-jni-prefix16",
+          "rust-jni-binary",
+          "java-binary",
+          "java-prefix20",
+          "rust-jni-prefix20"
+        ],
+        "order": [
+          [
+            "java",
+            "prefix16"
+          ],
+          [
+            "rust-jni",
+            "prefix16"
+          ],
+          [
+            "rust-jni",
+            "binary"
+          ],
+          [
+            "java",
+            "binary"
+          ],
+          [
+            "java",
+            "prefix20"
+          ],
+          [
+            "rust-jni",
+            "prefix20"
+          ]
+        ],
+        "algorithmsQuick": false,
+        "quick": true,
+        "sha256": "53defbfb94785be2fa064d42cf85ab26de8a8fa88bf9cd1d5c2c587a77f1b7da",
+        "oracleSha256": null,
+        "jarSha256": "54a20516f3646f5706a5081ca923974093aa8dc7cdb7f8ae9a5a5b52f0964088",
+        "nativeSha256": "42b331a290fe25599d8cb0a90c772a679eafa0fa141cb288307491b2f7cd6779",
+        "rustToolchain": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "cargoLockSha256": "6cde7cf75c612dbf09db6341aa9ea33c512144344eceb1b3e0fc191684701920",
+        "build": {
+          "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+          "target": "x86_64-unknown-linux-gnu",
+          "profile": "release",
+          "encodedRustflagsHex": ""
+        },
+        "toolchainFileSha256": "d13306be0ecda81ce779baa290ffb417380d525928477f16200884b5169cca33",
+        "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+        "git": "4cc85f7442343bdffa839bfda9807fd68437fab6",
+        "jdk": "openjdk version \"11.0.32.1\" 2026-08-18\nOpenJDK Runtime Environment (build 11.0.32.1+1-post-1ubuntu1-24.04-Ubuntu)\nOpenJDK 64-Bit Server VM (build 11.0.32.1+1-post-1ubuntu1-24.04-Ubuntu, mixed mode, sharing)\n",
+        "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+        "cpuCount": 16,
+        "seed": 20261104,
+        "queryPool": 1000000
+      },
+      "dataset": "iploc.parquet",
+      "measurementCount": 48,
+      "results": [
+        {
+          "scenario": "java-binary",
+          "status": "passed",
+          "seconds": 46.039,
+          "peakGroupRssBytes": 9965756416,
+          "consoleSha256": "aa6abedce1cf869b0d1a427fdafaaf69ac037aad120b6698d8f05945e9e1cb5e",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [],
+          "synthetic": []
+        },
+        {
+          "scenario": "java-prefix16",
+          "status": "passed",
+          "seconds": 45.033,
+          "peakGroupRssBytes": 9821106176,
+          "consoleSha256": "018638c56680e8d89a0b2f93d58d2202584ca56b4fd75037d8c916dca5d737ab",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [],
+          "synthetic": []
+        },
+        {
+          "scenario": "java-prefix20",
+          "status": "passed",
+          "seconds": 46.034,
+          "peakGroupRssBytes": 10052665344,
+          "consoleSha256": "c82b0f327634d567244197af7eb312ecec5a09408132d88d1d5462d5b771543b",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [],
+          "synthetic": []
+        },
+        {
+          "scenario": "rust-jni-binary",
+          "status": "passed",
+          "seconds": 28.02,
+          "peakGroupRssBytes": 5212688384,
+          "consoleSha256": "0c5feb72080bb340433c03cf59ad280aee7ff08525ef1df0a426477944b8ab37",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [],
+          "synthetic": []
+        },
+        {
+          "scenario": "rust-jni-prefix16",
+          "status": "passed",
+          "seconds": 28.02,
+          "peakGroupRssBytes": 5122551808,
+          "consoleSha256": "84973711e0f5a6008419894610ef354f672519e621300003589377d5b03b12b4",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [],
+          "synthetic": []
+        },
+        {
+          "scenario": "rust-jni-prefix20",
+          "status": "passed",
+          "seconds": 28.017,
+          "peakGroupRssBytes": 5173637120,
+          "consoleSha256": "43b939405aa0c1f9e91733117ee1a1e2ce54e11600118f68632526fc3a1dc82e",
+          "querySha256": "1845f9d5f0a0d320e5ef58c610949fa06c317951c7636a0067657d4b8c798b4f",
+          "verifiedRealSamples": [],
+          "synthetic": []
+        }
+      ]
+    }
+  },
+  "followupRegression": {
+    "sourceCommit": "7e19a8814f87109179da06907d31eeb2e3b82f6a",
+    "pythonRunnerTests": 14,
+    "result": "passed",
+    "change": "显式 algorithm 优先于历史 prefix；不改变本轮矩阵的选择参数与 Java/Native 制品",
+    "legacyJavaEntrypoint": {
+      "result": "passed",
+      "algorithms": 9,
+      "dataset": "tests/fixtures/valid.parquet",
+      "oracle": "tests/fixtures/valid-oracle.tsv",
+      "command": "python3 tools/evaluation/run.py verify --verify-algorithms --dataset tests/fixtures/valid.parquet --oracle tests/fixtures/valid-oracle.tsv --output benchmark-results/java-legacy-regression"
+    }
+  },
+  "artifactChecks": {
+    "rawAndSummaryMeasurements": 324,
+    "uniqueMeasurementKeys": 324,
+    "resourceGroups": 6,
+    "indexStats": 6,
+    "jarAndNativeHashMatch": "passed",
+    "localDocumentLinks": "passed"
+  }
+}

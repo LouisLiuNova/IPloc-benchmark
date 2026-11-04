@@ -2,6 +2,7 @@
 """串行评估编排；只终止自行创建的进程组。所有运行结果写入独立目录。"""
 
 import argparse, csv, datetime, hashlib, json, os, platform, signal, subprocess, sys, time
+import candidates
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -235,11 +236,12 @@ def report(directory):
             rows.append(
                 {
                     "scenario": path.parent.name,
-                    "algorithm": r["params"].get("algorithm", "legacy")
-                    if r["params"].get("algorithm", "legacy") != "legacy"
-                    else "prefix16"
-                    if r["params"]["prefix"] == "true"
-                    else "binary",
+                    "candidate": r["params"].get("candidate", "java"),
+                    "algorithm": (
+                        r["params"].get("algorithm", "legacy")
+                        if r["params"].get("algorithm", "legacy") != "legacy"
+                        else "prefix16" if r["params"]["prefix"] == "true" else "binary"
+                    ),
                     "path": r["benchmark"].rsplit(".", 1)[-1],
                     "mode": r["mode"],
                     "batch": batch,
@@ -267,7 +269,21 @@ def report(directory):
             if name not in present:
                 statuses.append({"scenario": name, "status": "not_run"})
     coverage = None
-    if manifest_path.exists() and manifest.get("algorithmsQuick"):
+    if (
+        manifest_path.exists()
+        and manifest.get("crossCandidate")
+        and manifest.get("action") == "matrix"
+    ):
+        expected = candidates.coverage(manifest["candidates"], manifest["algorithms"])
+        actual = {candidates.key(row) for row in rows}
+        coverage = {
+            "expected": len(expected),
+            "actual": len(actual),
+            "missing": sorted(expected - actual),
+            "unexpected": sorted(actual - expected),
+            "duplicates": len(rows) - len(actual),
+        }
+    elif manifest_path.exists() and manifest.get("algorithmsQuick"):
         expected = expected_algorithm_coverage(manifest["algorithms"])
         actual = {algorithm_coverage_key(row) for row in rows}
         coverage = {
@@ -300,7 +316,7 @@ def report(directory):
     (directory / "summary.json").write_text(
         json.dumps(
             {
-                "rust-jni": "not_implemented",
+                "candidates": sorted({r["candidate"] for r in rows}),
                 "coverage": coverage,
                 "runs": statuses,
                 "measurements": rows,
@@ -309,23 +325,25 @@ def report(directory):
         )
     )
     lines = [
-        "# Java 性能评估结果",
-        "\n全矩阵快速模式：1 次预热 + 1 次测量，各 1 秒；JMH forks=0，每进程复用快照，共享 JIT/GC 历史。仅作探索性比较，正式长测待运行。"
-        if manifest_path.exists()
-        and (manifest.get("matrixQuick") or manifest.get("algorithmsQuick"))
-        else "",
+        "# IPv4 查询性能评估结果",
+        (
+            "\n全矩阵快速模式：1 次预热 + 1 次测量，各 1 秒；JMH forks=0，每进程复用快照，共享 JIT/GC 历史。仅作探索性比较，正式长测待运行。"
+            if manifest_path.exists()
+            and (manifest.get("matrixQuick") or manifest.get("algorithmsQuick"))
+            else ""
+        ),
         "",
-        "Rust/JNI：not_implemented，尚无跨候选对比。",
+        "Java/Rust 候选按运行记录分别报告；Java GC 指标不包含 Native 分配。",
         "",
         "吞吐包含结果消费；sample 延迟单位为秒/批次。尾延迟样本少于 10,000 时标为不足（P99 尾部不足约 100 个样本）；不宣称稳定。",
         "",
-        "| 场景 | 算法 | 路径 | 模式 | B | C | 命中率 % | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
-        "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| 场景 | 候选 | 算法 | 路径 | 模式 | B | C | 命中率 % | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
+        "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for r in rows:
         val = r["ipPerSecond"] if r["ipPerSecond"] is not None else r["score"]
         lines.append(
-            f"| {r['scenario']} | {r['algorithm']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {r['hitRate']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'数量达标' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
+            f"| {r['scenario']} | {r['candidate']} | {r['algorithm']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {r['hitRate']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'数量达标' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
         )
     lines += ["", "## 运行状态", ""] + [
         f"- {s['scenario']}: {s['status']}，{s.get('seconds', '-')} 秒，峰值进程组 RSS {s.get('peakGroupRssBytes', 0) / GIB:.2f} GiB。"
@@ -367,6 +385,12 @@ def main():
     parser.add_argument(
         "--resume", action="store_true", help="跳过同一目录中已通过的场景"
     )
+    parser.add_argument(
+        "--native", default=str(ROOT / "rust/target/release/libiprange_jni.so")
+    )
+    parser.add_argument(
+        "--synthetic-verify", action="store_true", help="N=10M/Q=1M 算术 oracle 校验"
+    )
     args = parser.parse_args()
     if sum([args.quick, args.matrix_quick, args.algorithms_quick]) > 1:
         parser.error("三种快速模式互斥")
@@ -380,8 +404,6 @@ def main():
         parser.error("--verify-algorithms 仅用于 verify，且不接受单独算法/前缀参数")
     if args.algorithms_quick and args.action != "benchmark":
         parser.error("--algorithms-quick 仅用于 benchmark")
-    if args.candidate == "rust-jni":
-        parser.error("rust-jni: not_implemented")
     out = Path(
         args.output
         or ROOT
@@ -391,6 +413,9 @@ def main():
     if args.action == "report":
         report(out)
         print(out / "report.md")
+        return
+    if args.candidate != "java" or args.synthetic_verify:
+        candidates.execute(args, parser, out, sys.modules[__name__])
         return
     if out.exists() and any(out.iterdir()) and not args.resume:
         parser.error("输出目录非空；使用新目录，或显式 --resume")
@@ -413,24 +438,30 @@ def main():
     ]
     manifest = {
         "jarSha256": hashlib.file_digest(JAR.open("rb"), "sha256").hexdigest(),
-        "plannedScenarios": ["verify"]
-        if args.action == "verify"
-        else ["quick-algorithms"]
-        if args.algorithms_quick
-        else ["quick-real", "quick-synthetic", "quick-prefix"]
-        if args.matrix_quick
-        else [c[0] for c in selected_cases],
+        "plannedScenarios": (
+            ["verify"]
+            if args.action == "verify"
+            else (
+                ["quick-algorithms"]
+                if args.algorithms_quick
+                else (
+                    ["quick-real", "quick-synthetic", "quick-prefix"]
+                    if args.matrix_quick
+                    else [c[0] for c in selected_cases]
+                )
+            )
+        ),
         "algorithmsQuick": args.algorithms_quick,
         "verifyAlgorithms": args.verify_algorithms,
         "algorithm": args.algorithm,
         "algorithms": selected_algorithms,
-        "oracleSha256": hashlib.file_digest(
-            open(args.oracle, "rb"), "sha256"
-        ).hexdigest()
-        if args.oracle
-        else None,
+        "oracleSha256": (
+            hashlib.file_digest(open(args.oracle, "rb"), "sha256").hexdigest()
+            if args.oracle
+            else None
+        ),
         "candidate": "java",
-        "rust-jni": "not_implemented",
+        "rust-jni": "not_selected",
         "dataset": args.dataset,
         "sha256": digest,
         "jdk": version,
@@ -469,8 +500,6 @@ def main():
                 parser.error("resume 参数/源码/数据不匹配: " + key)
     else:
         old.write_text(json.dumps(manifest, indent=2))
-    if args.candidate == "all":
-        print("rust-jni: skipped (not_implemented)", flush=True)
     if args.action == "verify":
         if not args.oracle:
             parser.error("verify 需要 --oracle oracle.tsv")
@@ -479,9 +508,11 @@ def main():
             "-Xmx10g",
             "-cp",
             str(JAR),
-            "io.iploc.bench.VerifyAlgorithmsMain"
-            if args.verify_algorithms
-            else "io.iploc.bench.VerifyMain",
+            (
+                "io.iploc.bench.VerifyAlgorithmsMain"
+                if args.verify_algorithms
+                else "io.iploc.bench.VerifyMain"
+            ),
             args.dataset,
             str(Path(args.oracle).resolve()),
             str(args.prefix).lower(),
