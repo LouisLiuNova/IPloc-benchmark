@@ -34,6 +34,11 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
   }
 
   public static JavaIpRangeSnapshot open(Path file, boolean prefix) throws IOException {
+    return open(file, prefix ? SearchAlgorithm.PREFIX_16 : SearchAlgorithm.BINARY);
+  }
+
+  public static JavaIpRangeSnapshot open(Path file, SearchAlgorithm algorithm) throws IOException {
+    Objects.requireNonNull(algorithm, "algorithm");
     BasicFileAttributes before = Files.readAttributes(file, BasicFileAttributes.class);
     String version = sha256(file);
     try (ParquetFileReader reader = ParquetFileReader.open(new LocalInputFile(file))) {
@@ -79,7 +84,7 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
         }
         rg++;
       }
-      State s = b.finish(version, prefix);
+      State s = b.finish(version, algorithm);
       BasicFileAttributes after = Files.readAttributes(file, BasicFileAttributes.class);
       if (before.size() != after.size()
           || !before.lastModifiedTime().equals(after.lastModifiedTime())
@@ -106,6 +111,11 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
   }
   /** 评估专用：固定 stride=256、width=128，可由独立算术推导命中行。 */
   public static JavaIpRangeSnapshot synthetic(int count, boolean prefix) {
+    return synthetic(count, prefix ? SearchAlgorithm.PREFIX_16 : SearchAlgorithm.BINARY);
+  }
+
+  public static JavaIpRangeSnapshot synthetic(int count, SearchAlgorithm algorithm) {
+    Objects.requireNonNull(algorithm, "algorithm");
     if (count < 0 || count > 16_777_216) throw new IllegalArgumentException("Synthetic row count");
     Builder b = new Builder(count);
     byte[][] value = new byte[8][];
@@ -114,7 +124,7 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
           ("synthetic-" + PayloadBatch.FIELDS.get(f))
               .getBytes(java.nio.charset.StandardCharsets.UTF_8);
     for (int i = 0; i < count; i++) b.append((long) i * 256, (long) i * 256 + 127, value);
-    return new JavaIpRangeSnapshot(b.finish("synthetic-v1-" + count, prefix));
+    return new JavaIpRangeSnapshot(b.finish("synthetic-v1-" + count, algorithm));
   }
 
   @Override
@@ -137,21 +147,23 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
     State s = acquire();
     BatchChecks.range(ips.length, offset, length);
     BatchChecks.range(rows.length, out, length);
-    for (int j = 0; j < length; j++) {
-      int ip = ips[offset + j], lo = 0, hi = s.starts.length;
-      if (s.prefix != null) {
-        int p = ip >>> 16;
-        lo = Math.max(0, s.prefix[p] - 1);
-        hi = s.prefix[p + 1];
-      }
-      while (lo < hi) {
-        int mid = lo + ((hi - lo) >>> 1);
-        if (Integer.compareUnsigned(s.starts[mid], ip) <= 0) lo = mid + 1;
-        else hi = mid;
-      }
-      int row = lo - 1;
-      rows[out + j] = row >= 0 && Integer.compareUnsigned(ip, s.ends[row]) <= 0 ? row : -1;
-    }
+    s.index.lookup(ips, offset, length, rows, out);
+  }
+
+  /** 共享同一不可变数据，独立管理视图生命周期；只额外构建所选搜索索引。 */
+  public JavaIpRangeSnapshot withAlgorithm(SearchAlgorithm algorithm) {
+    State s = acquire();
+    return new JavaIpRangeSnapshot(
+        new State(
+            s.version, s.starts, s.ends, s.chunks, Objects.requireNonNull(algorithm, "algorithm")));
+  }
+
+  public SearchAlgorithm algorithm() {
+    return acquire().algorithm;
+  }
+  /** 额外索引基本类型数组字节数，不是进程 RSS。 */
+  public long indexBytes() {
+    return acquire().index.bytes();
   }
 
   @Override
@@ -198,23 +210,18 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
 
   private static final class State {
     final String version;
-    final int[] starts, ends, prefix;
+    final int[] starts, ends;
     final PayloadBatch.Column[][] chunks;
+    final SearchAlgorithm algorithm;
+    final SearchIndexes index;
 
-    State(String v, int[] a, int[] z, PayloadBatch.Column[][] c, boolean usePrefix) {
+    State(String v, int[] a, int[] z, PayloadBatch.Column[][] c, SearchAlgorithm algorithm) {
       version = v;
       starts = a;
       ends = z;
       chunks = c;
-      prefix = usePrefix ? new int[65_537] : null;
-      if (usePrefix) {
-        int r = 0;
-        for (int p = 0; p <= 65_536; p++) {
-          long min = (long) p << 16;
-          while (r < a.length && Integer.toUnsignedLong(a[r]) < min) r++;
-          prefix[p] = r;
-        }
-      }
+      this.algorithm = algorithm;
+      index = SearchIndexes.create(a, z, algorithm);
     }
   }
 
@@ -279,10 +286,11 @@ public final class JavaIpRangeSnapshot implements IpRangeSnapshot {
       if (local == CHUNK) flush();
     }
 
-    State finish(String version, boolean prefix) {
+    State finish(String version, SearchAlgorithm algorithm) {
       if (at != starts.length) throw new IllegalArgumentException("Row count mismatch");
       flush();
-      return new State(version, starts, ends, chunks.toArray(new PayloadBatch.Column[0][]), prefix);
+      return new State(
+          version, starts, ends, chunks.toArray(new PayloadBatch.Column[0][]), algorithm);
     }
   }
 
