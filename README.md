@@ -53,12 +53,15 @@ python3 tools/evaluation/run.py verify --oracle benchmark-results/oracle/oracle.
 # 短预检：1 fork，1 次预热、1 次测量，各 1 秒；不作为正式性能结论。
 python3 tools/evaluation/run.py benchmark --quick --candidate all --output benchmark-results/preflight
 
+# 全矩阵快速测量：每组共用快照，JMH forks=0；探索性数据，共享 JIT/GC 历史。
+python3 tools/evaluation/run.py benchmark --matrix-quick --output benchmark-results/matrix-quick
+
 # 正式矩阵：3 forks，5×1 秒预热、10×1 秒测量，预计耗时数小时。
 python3 tools/evaluation/run.py benchmark --output benchmark-results/formal
 python3 tools/evaluation/run.py report --output benchmark-results/formal
 ```
 
-使用 `--jdk` 指定评估 JDK；`--only real-b4096` 可定位场景，`--resume` 只跳过同目录已通过场景，要求代码提交、JAR、数据及 JDK 一致。`--candidate all` 明确跳过尚未实现的 Rust；`--candidate rust-jni` 返回错误。不要把限定场景或短预检称为完整矩阵。
+使用 `--jdk` 指定评估 JDK；`--only real-b4096` 可定位场景，`--resume` 只跳过同目录已通过场景，要求代码提交、JAR、数据及 JDK 一致。`--candidate all` 明确跳过尚未实现的 Rust；`--candidate rust-jni` 返回错误。全矩阵快速模式覆盖全部 128 个测量组合，但不替代正式独立 fork 长测；不要把限定场景或短预检称为完整矩阵。
 
 每个目录保存 manifest、命令、控制台、JMH JSON、GC 日志、进程组 RSS/CPU 和系统可用内存采样、状态及汇总报告。测量错误立即停止，不自动重试。资源保护在启动前检查可用内存；运行中每秒采样，连续两次 `MemAvailable < 2 GiB` 或进程组 RSS `> 12 GiB` 时终止当前进程组并停止后续场景。评估 fork 固定 `-Xmx10g`，同一时间仅一套全量快照；不调整系统 swap 或内核参数。
 

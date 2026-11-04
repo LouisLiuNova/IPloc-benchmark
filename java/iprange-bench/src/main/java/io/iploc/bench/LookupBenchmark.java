@@ -11,6 +11,9 @@ import org.openjdk.jmh.infra.*;
 @Fork(3)
 @OutputTimeUnit(TimeUnit.SECONDS)
 public class LookupBenchmark {
+  // 仅全矩阵快速模式设置；正式 JMH fork 不共享此状态。
+  static IpRangeSnapshot quickSnapshot;
+
   @State(Scope.Benchmark)
   public static class Dataset {
     @Param({"java"})
@@ -33,7 +36,8 @@ public class LookupBenchmark {
 
     @Setup(Level.Trial)
     public void setup() throws Exception {
-      snapshot = Candidates.open(candidate, dataset, prefix);
+      snapshot =
+          quickSnapshot == null ? Candidates.open(candidate, dataset, prefix) : quickSnapshot;
       ips = new int[1_000_000];
       Random random = new Random(20261104L);
       for (int i = 0; i < ips.length; i++) {
@@ -47,7 +51,7 @@ public class LookupBenchmark {
 
     @TearDown(Level.Trial)
     public void close() {
-      snapshot.close();
+      if (snapshot != quickSnapshot) snapshot.close();
     }
   }
 

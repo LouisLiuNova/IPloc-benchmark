@@ -75,6 +75,9 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(12, run.sample_count(metric))
         self.assertIsNone(run.sample_count({}))
 
+    def test_expected_quick_coverage(self):
+        self.assertEqual(128, len(run.expected_coverage("real")))
+
     def test_matrix(self):
         cases = run.scenarios("real", False)
         self.assertEqual(28, len(cases))

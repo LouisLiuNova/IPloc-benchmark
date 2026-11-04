@@ -156,13 +156,34 @@ def sample_count(metric):
     )
 
 
+def coverage_key(path, batch, threads, prefix, dataset, hit, mode):
+    return (
+        path,
+        int(batch),
+        int(threads),
+        str(prefix).lower(),
+        "synthetic" if dataset.startswith("synthetic:") else "real",
+        int(hit),
+        mode,
+    )
+
+
+def expected_coverage(dataset):
+    return {
+        coverage_key(path, b, c, prefix, data, hit, mode)
+        for _, data, b, c, paths, prefix, hit in scenarios(dataset, False)
+        for path in paths.split("|")
+        for mode in ["thrpt", "sample"]
+    }
+
+
 def report(directory):
     rows = []
     statuses = []
     for path in sorted(directory.glob("*/status.json")):
         s = json.loads(path.read_text())
         statuses.append({"scenario": path.parent.name, **s})
-    for path in sorted(directory.glob("*/jmh.json")):
+    for path in sorted(directory.glob("*/jmh*.json")):
         try:
             results = json.loads(path.read_text())
         except (ValueError, OSError):
@@ -186,6 +207,7 @@ def report(directory):
                     "threads": r["threads"],
                     "prefix": r["params"]["prefix"],
                     "dataset": r["params"]["dataset"],
+                    "hitRate": r["params"]["hitRate"],
                     "score": m["score"],
                     "scoreError": m["scoreError"],
                     "scoreUnit": m["scoreUnit"],
@@ -205,14 +227,44 @@ def report(directory):
         for name in manifest.get("plannedScenarios", []):
             if name not in present:
                 statuses.append({"scenario": name, "status": "not_run"})
+    coverage = None
+    if manifest_path.exists() and manifest.get("matrixQuick"):
+        expected = expected_coverage(manifest["dataset"])
+        actual = {
+            coverage_key(
+                r["path"],
+                r["batch"],
+                r["threads"],
+                r["prefix"],
+                r["dataset"],
+                r["hitRate"],
+                r["mode"],
+            )
+            for r in rows
+        }
+        coverage = {
+            "expected": len(expected),
+            "actual": len(actual),
+            "missing": sorted(expected - actual),
+            "unexpected": sorted(actual - expected),
+        }
     (directory / "summary.json").write_text(
         json.dumps(
-            {"rust-jni": "not_implemented", "runs": statuses, "measurements": rows},
+            {
+                "rust-jni": "not_implemented",
+                "coverage": coverage,
+                "runs": statuses,
+                "measurements": rows,
+            },
             indent=2,
         )
     )
     lines = [
         "# Java 性能评估结果",
+        "\n全矩阵快速模式：1 次预热 + 1 次测量，各 1 秒；JMH forks=0，每进程复用快照，共享 JIT/GC 历史。仅作探索性比较，正式长测待运行。"
+        if manifest_path.exists()
+        and json.loads(manifest_path.read_text()).get("matrixQuick")
+        else "",
         "",
         "Rust/JNI：not_implemented，尚无跨候选对比。",
         "",
@@ -244,6 +296,11 @@ def main():
     parser.add_argument("--output")
     parser.add_argument("--jdk", default="/usr/lib/jvm/java-11-openjdk-amd64")
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument(
+        "--matrix-quick",
+        action="store_true",
+        help="全矩阵探索性测量：每进程共用快照，JMH forks=0",
+    )
     parser.add_argument("--oracle")
     parser.add_argument("--prefix", action="store_true", help="verify 时启用前缀目录")
     parser.add_argument("--only", help="只运行名称包含该文本的场景")
@@ -251,6 +308,10 @@ def main():
         "--resume", action="store_true", help="跳过同一目录中已通过的场景"
     )
     args = parser.parse_args()
+    if args.quick and args.matrix_quick:
+        parser.error("--quick 与 --matrix-quick 互斥")
+    if args.matrix_quick and args.only:
+        parser.error("全矩阵快速模式不接受 --only")
     if args.candidate == "rust-jni":
         parser.error("rust-jni: not_implemented")
     out = Path(
@@ -277,6 +338,8 @@ def main():
         "jarSha256": hashlib.file_digest(JAR.open("rb"), "sha256").hexdigest(),
         "plannedScenarios": ["verify"]
         if args.action == "verify"
+        else ["quick-real", "quick-synthetic", "quick-prefix"]
+        if args.matrix_quick
         else [
             c[0]
             for c in scenarios(args.dataset, args.quick)
@@ -292,6 +355,7 @@ def main():
         "seed": 20261104,
         "queryPool": 1000000,
         "quick": args.quick,
+        "matrixQuick": args.matrix_quick,
         "createdAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "git": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
@@ -310,6 +374,7 @@ def main():
             "candidate",
             "jarSha256",
             "plannedScenarios",
+            "matrixQuick",
         ]:
             if previous.get(key) != manifest.get(key):
                 parser.error("resume 参数/源码/数据不匹配: " + key)
@@ -334,6 +399,45 @@ def main():
         print(json.dumps(result), flush=True)
         report(out)
         sys.exit(0 if result["status"] == "passed" else 1)
+    if args.matrix_quick:
+        for group, dataset in [
+            ("real", args.dataset),
+            ("synthetic", "synthetic:10000000"),
+            ("prefix", args.dataset),
+        ]:
+            name = "quick-" + group
+            directory = out / name
+            if (
+                args.resume
+                and (directory / "status.json").exists()
+                and json.loads((directory / "status.json").read_text())["status"]
+                == "passed"
+            ):
+                continue
+            command = [
+                java,
+                "-Xmx10g",
+                "-Xms256m",
+                f"-Xlog:gc:file={directory}/gc-%p.log",
+                "-cp",
+                str(JAR),
+                "io.iploc.bench.QuickMatrixMain",
+                group,
+                dataset,
+                str(directory),
+            ]
+            print("START " + name, flush=True)
+            result = guarded(command, directory)
+            print(name + " " + json.dumps(result), flush=True)
+            report(out)
+            if result["status"] != "passed":
+                sys.exit(1)
+        report(out)
+        coverage = json.loads((out / "summary.json").read_text())["coverage"]
+        if coverage["missing"] or coverage["unexpected"]:
+            raise RuntimeError("快速矩阵覆盖不完整；详见 summary.json")
+        print("DONE " + str(out), flush=True)
+        return
     for name, dataset, b, c, paths, prefix, hit in scenarios(args.dataset, args.quick):
         if args.only and args.only not in name:
             continue
