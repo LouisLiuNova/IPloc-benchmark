@@ -1,5 +1,7 @@
 # 原始数据与本地性能输出；小型测试 fixture 可放入 tests/fixtures
 /iploc.parquet
+# 含敏感字段的本地数据
+/iploc_col.txt
 /data/
 /benchmark-results/
 
