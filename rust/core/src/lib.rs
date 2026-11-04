@@ -59,7 +59,7 @@ impl Column {
     }
     fn push(&mut self, value: Option<&str>) -> Result<()> {
         let row = self.offsets.len() - 1;
-        if row % 8 == 0 {
+        if row.is_multiple_of(8) {
             self.valid.push(0);
         }
         if let Some(value) = value {

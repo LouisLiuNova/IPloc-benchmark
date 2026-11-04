@@ -17,6 +17,9 @@
     <module>java/iprange-contract</module>
     <module>java/iprange-bench</module>
   </modules>
+  <profiles>
+    <profile><id>rust-jni</id><modules><module>java/iprange-rust</module></modules></profile>
+  </profiles>
   <build>
     <plugins>
       <plugin>

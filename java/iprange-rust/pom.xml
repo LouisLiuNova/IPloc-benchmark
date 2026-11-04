@@ -1,0 +1,21 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>io.iploc</groupId><artifactId>iprange-parent</artifactId><version>0.1.0-SNAPSHOT</version><relativePath>../../pom.xml</relativePath></parent>
+  <artifactId>iprange-rust</artifactId>
+  <dependencies>
+    <dependency><groupId>io.iploc</groupId><artifactId>iprange-api</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>5.13.4</version><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins>
+    <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.6.2</version>
+      <executions><execution><id>native-release</id><phase>generate-resources</phase><goals><goal>exec</goal></goals><configuration>
+        <executable>cargo</executable><workingDirectory>${maven.multiModuleProjectDirectory}/rust</workingDirectory>
+        <arguments><argument>build</argument><argument>--release</argument><argument>--locked</argument><argument>-p</argument><argument>iprange-jni</argument></arguments>
+      </configuration></execution></executions>
+    </plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration>
+      <systemPropertyVariables><iploc.native.path>${maven.multiModuleProjectDirectory}/rust/target/release/libiprange_jni.so</iploc.native.path></systemPropertyVariables>
+      <argLine>-Xcheck:jni</argLine>
+    </configuration></plugin>
+  </plugins></build>
+</project>

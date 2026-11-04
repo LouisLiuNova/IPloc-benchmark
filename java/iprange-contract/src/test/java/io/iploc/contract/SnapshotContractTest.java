@@ -122,7 +122,7 @@ abstract class SnapshotContract {
             "cross-group",
             "wrong-type",
             "wrong-payload",
-            "missing"))
+            "missing", "duplicate", "nested", "cross-batch"))
       assertThrows(Exception.class, () -> open(fixtures.resolve(name + ".parquet")), name);
   }
 
