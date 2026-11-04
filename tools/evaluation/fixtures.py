@@ -43,6 +43,7 @@ def main():
     ends = [0, 20, 2**31 + 2, 2**32 - 1]
     write(out / "valid.parquet", starts, ends)
     write(out / "empty.parquet", [], [])
+    write(out / "wide.parquet", [0, 0xFFFF0000], [0x80000000, 0xFFFFFFFF])
     for name, a, z in [
         ("overlap", [0, 0], [0, 2]),
         ("reversed", [2], [1]),

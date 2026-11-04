@@ -32,6 +32,27 @@ def group_usage(pgid):
     return rss, cpu
 
 
+def terminate_group(process):
+    """父进程退出也要清理 fork；最多等待 5 秒后强制结束同组残留。"""
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        process.poll()
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.05)
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+
+
 def guarded(command, directory):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "command.json").write_text(
@@ -76,20 +97,12 @@ def guarded(command, directory):
                 bad = bad + 1 if mem < 2 * GIB or rss > 12 * GIB else 0
                 if bad >= 2:
                     reason = "MemAvailable < 2 GiB or process-group RSS > 12 GiB for two samples"
-                    os.killpg(process.pid, signal.SIGTERM)
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(process.pid, signal.SIGKILL)
-                        process.wait()
+                    terminate_group(process)
                     break
                 time.sleep(1)
         finally:
             # JMH fork 也在本进程组；父进程异常退出时不能遗留 fork。
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
+            terminate_group(process)
         code = process.wait()
     result = {
         "status": "resource_stopped" if reason else "passed" if code == 0 else "failed",
@@ -174,6 +187,13 @@ def report(directory):
                     "samples": m.get("sampleCount"),
                 }
             )
+    manifest_path = directory / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text())
+        present = {s["scenario"] for s in statuses}
+        for name in manifest.get("plannedScenarios", []):
+            if name not in present:
+                statuses.append({"scenario": name, "status": "not_run"})
     (directory / "summary.json").write_text(
         json.dumps(
             {"rust-jni": "not_implemented", "runs": statuses, "measurements": rows},
@@ -214,6 +234,7 @@ def main():
     parser.add_argument("--jdk", default="/usr/lib/jvm/java-11-openjdk-amd64")
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--oracle")
+    parser.add_argument("--prefix", action="store_true", help="verify 时启用前缀目录")
     parser.add_argument("--only", help="只运行名称包含该文本的场景")
     parser.add_argument(
         "--resume", action="store_true", help="跳过同一目录中已通过的场景"
@@ -243,6 +264,13 @@ def main():
     digest = hashlib.file_digest(open(args.dataset, "rb"), "sha256").hexdigest()
     manifest = {
         "jarSha256": hashlib.file_digest(JAR.open("rb"), "sha256").hexdigest(),
+        "plannedScenarios": ["verify"]
+        if args.action == "verify"
+        else [
+            c[0]
+            for c in scenarios(args.dataset, args.quick)
+            if not args.only or args.only in c[0]
+        ],
         "candidate": "java",
         "rust-jni": "not_implemented",
         "dataset": args.dataset,
@@ -258,10 +286,20 @@ def main():
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
         ).strip(),
     }
+    if not manifest["plannedScenarios"]:
+        parser.error("没有匹配的评估场景")
     old = out / "manifest.json"
     if old.exists():
         previous = json.loads(old.read_text())
-        for key in ["sha256", "quick", "git", "jdk", "candidate", "jarSha256"]:
+        for key in [
+            "sha256",
+            "quick",
+            "git",
+            "jdk",
+            "candidate",
+            "jarSha256",
+            "plannedScenarios",
+        ]:
             if previous.get(key) != manifest.get(key):
                 parser.error("resume 参数/源码/数据不匹配: " + key)
     else:
@@ -279,6 +317,7 @@ def main():
             "io.iploc.bench.VerifyMain",
             args.dataset,
             str(Path(args.oracle).resolve()),
+            str(args.prefix).lower(),
         ]
         result = guarded(command, out / "verify")
         print(json.dumps(result), flush=True)

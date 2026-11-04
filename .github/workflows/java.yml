@@ -1,0 +1,21 @@
+name: Java 候选校验
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: 构建与契约测试
+        run: IPLOC_JDK_HOME="$JAVA_HOME" tools/evaluation/build.sh -B verify
+      - name: 评估运行器测试
+        working-directory: tools/evaluation
+        run: python3 -m unittest -v test_runner

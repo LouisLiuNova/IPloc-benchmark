@@ -100,6 +100,16 @@ abstract class SnapshotContract {
   }
 
   @Test
+  void longRangesCrossPrefixes() throws Exception {
+    try (IpRangeSnapshot s = open(fixtures.resolve("wide.parquet"))) {
+      int[] ips = {1, 65535, 65536, 0x7fffffff, 0x80000000, 0x80000001, 0xfffeffff, 0xffff0000, -1};
+      long[] rows = new long[ips.length];
+      s.lookupBatch(ips, 0, ips.length, rows, 0);
+      assertArrayEquals(new long[] {0, 0, 0, 0, 0, -1, -1, 1, 1}, rows);
+    }
+  }
+
+  @Test
   void refusesBadData() {
     for (String name :
         List.of(
@@ -165,5 +175,22 @@ class PrefixContractTest extends SnapshotContract {
   @Override
   IpRangeSnapshot open(Path p) throws Exception {
     return JavaIpRangeSnapshot.open(p, true);
+  }
+}
+
+class SyntheticTest {
+  @Test
+  void arithmeticOracle() {
+    for (boolean prefix : new boolean[] {false, true}) {
+      try (IpRangeSnapshot s = JavaIpRangeSnapshot.synthetic(1000, prefix)) {
+        int[] ips = new int[10000];
+        long[] rows = new long[ips.length];
+        Random random = new Random(20261104L);
+        for (int i = 0; i < ips.length; i++) ips[i] = random.nextInt(300000);
+        s.lookupBatch(ips, 0, ips.length, rows, 0);
+        for (int i = 0; i < ips.length; i++)
+          assertEquals(ips[i] / 256 < 1000 && ips[i] % 256 < 128 ? ips[i] / 256 : -1, rows[i]);
+      }
+    }
   }
 }
