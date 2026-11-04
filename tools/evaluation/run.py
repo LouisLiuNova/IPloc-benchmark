@@ -270,13 +270,13 @@ def report(directory):
         "",
         "吞吐包含结果消费；sample 延迟单位为秒/批次。尾延迟样本少于 10,000 时标为不足（P99 尾部不足约 100 个样本）；不宣称稳定。",
         "",
-        "| 场景 | 路径 | 模式 | B | C | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|---|",
+        "| 场景 | 路径 | 模式 | B | C | 命中率 % | IP/s 或秒/批次 | P50 | P95 | P99 | 样本数 / 尾延迟证据 |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for r in rows:
         val = r["ipPerSecond"] if r["ipPerSecond"] is not None else r["score"]
         lines.append(
-            f"| {r['scenario']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'足够' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
+            f"| {r['scenario']} | {r['path']} | {r['mode']} | {r['batch']} | {r['threads']} | {r['hitRate']} | {val:.6g} | {r['p50']} | {r['p95']} | {r['p99']} | {r['samples']} / {'数量达标' if r['tailSufficient'] else '不足' if r['mode'] == 'sample' else '不适用'} |"
         )
     lines += ["", "## 运行状态", ""] + [
         f"- {s['scenario']}: {s['status']}，{s.get('seconds', '-')} 秒，峰值进程组 RSS {s.get('peakGroupRssBytes', 0) / GIB:.2f} GiB。"

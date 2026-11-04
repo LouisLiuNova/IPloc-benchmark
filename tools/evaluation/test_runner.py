@@ -78,6 +78,38 @@ class RunnerTests(unittest.TestCase):
     def test_expected_quick_coverage(self):
         self.assertEqual(128, len(run.expected_coverage("real")))
 
+    def test_report_distinguishes_hit_rates(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            d = root / "synthetic"
+            d.mkdir()
+            (d / "status.json").write_text('{"status":"passed"}')
+            records = [
+                {
+                    "benchmark": "bench.rows",
+                    "mode": "thrpt",
+                    "threads": 1,
+                    "params": {
+                        "batch": "4096",
+                        "prefix": "false",
+                        "dataset": "synthetic:10000000",
+                        "hitRate": str(hit),
+                    },
+                    "primaryMetric": {
+                        "score": 10,
+                        "scoreError": 1,
+                        "scoreUnit": "ops/s",
+                        "scorePercentiles": {"50.0": 10},
+                    },
+                }
+                for hit in [0, 90]
+            ]
+            (d / "jmh.json").write_text(json.dumps(records))
+            results = run.report(root)
+            self.assertEqual(["0", "90"], [r["hitRate"] for r in results])
+            self.assertTrue(all(r["p50"] is None for r in results))
+            self.assertIn("| 4096 | 1 | 90 |", (root / "report.md").read_text())
+
     def test_matrix(self):
         cases = run.scenarios("real", False)
         self.assertEqual(28, len(cases))

@@ -1,6 +1,6 @@
 # IPloc-benchmark
 
-比较同等布局的 Java / Rust IPv4 区间查询候选。主程序目标为 Java 11，真实数据约 3,230 万行。当前 Java 已实现，Rust/JNI 为 `not_implemented`；性能结果仅说明本机 Java 表现。
+比较同等布局的 Java / Rust IPv4 区间查询候选。主程序目标为 Java 11，真实数据约 3,230 万行。当前 Java 已实现，Rust/JNI 为 `not_implemented`；性能结果仅说明本机 Java 表现。完整快速矩阵已完成 128/128 个测量组合，见[实测结果](doc/Java全矩阵快速测量结果.md)；正式长测留待后续。
 
 ## 工程与构建
 
