@@ -1,0 +1,42 @@
+# 原始数据与本地性能输出；小型测试 fixture 可放入 tests/fixtures
+/iploc.parquet
+/data/
+/benchmark-results/
+
+# Rust、Java / Maven / Gradle 构建产物
+target/
+build/
+.gradle/
+*.class
+*.jar
+*.so
+*.dylib
+*.dll
+*.o
+*.a
+# 保留构建工具 Wrapper
+!gradle/wrapper/gradle-wrapper.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# 编辑器、操作系统及临时文件
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+*.log
+~$*
+
+# 本地代理工具配置与凭据
+/.agents/
+/.codex/
+/.aws/
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
