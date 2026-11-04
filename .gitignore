@@ -40,3 +40,8 @@ Thumbs.db
 !.env.sample
 *.pem
 *.key
+
+# Python 与本地评估环境
+__pycache__/
+*.pyc
+.venv/
