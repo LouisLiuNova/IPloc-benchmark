@@ -15,7 +15,9 @@ class NativeBoundaryTest {
   void viewsResultsAndRepeatedLifecycle() throws Exception {
     for (int i = 0; i < 100; i++) {
       RustIpRangeSnapshot base = RustIpRangeSnapshot.open(valid);
-      try (RustIpRangeSnapshot view = base.withAlgorithm("prefix20")) {
+      try (RustIpRangeSnapshot view =
+          base.withAlgorithm(
+              RustIpRangeSnapshot.ALGORITHMS.get(i % RustIpRangeSnapshot.ALGORITHMS.size()))) {
         base.close();
         base.close();
         PayloadBatch result = view.fetchBatch(new long[] {2, -1}, 0, 2);
@@ -33,8 +35,7 @@ class NativeBoundaryTest {
     assertThrows(
         IllegalStateException.class,
         () -> NativeBridge.lookup(0, new int[0], 0, 0, new long[0], 0));
-    assertThrows(
-        IllegalArgumentException.class, () -> RustIpRangeSnapshot.open(valid, "eytzinger"));
+    assertThrows(IllegalArgumentException.class, () -> RustIpRangeSnapshot.open(valid, "unknown"));
     assertThrows(
         java.io.IOException.class,
         () -> RustIpRangeSnapshot.open(valid.resolveSibling("absent.parquet")));

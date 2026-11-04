@@ -7,7 +7,10 @@ import struct
 import subprocess
 from pathlib import Path
 
-COMMON = ("binary", "prefix16", "prefix20")
+COMMON = (
+    "binary", "prefix16", "prefix20", "prefix16-24", "interleaved4", "interleaved8",
+    "prefix16-interleaved4", "prefix16-interleaved8", "eytzinger",
+)
 
 
 def selection(candidate, algorithm, prefix=False):
@@ -15,8 +18,8 @@ def selection(candidate, algorithm, prefix=False):
     algorithms = list(COMMON) if algorithm == "legacy" else [algorithm]
     if prefix and algorithm == "legacy":
         algorithms = ["prefix16"]
-    if "rust-jni" in candidates and any(a not in COMMON for a in algorithms):
-        raise ValueError("Rust 不支持该策略；支持 binary、prefix16、prefix20")
+    if any(a not in COMMON for a in algorithms):
+        raise ValueError("不支持该策略")
     return candidates, algorithms
 
 

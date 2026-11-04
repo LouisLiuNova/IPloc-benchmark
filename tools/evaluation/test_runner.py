@@ -46,7 +46,7 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual("resource_stopped", result["status"])
             self.assertLess(result["seconds"], 10)
 
-    def test_unsupported_rust_algorithm_is_error(self):
+    def test_unknown_algorithm_is_error(self):
         p = subprocess.run(
             [
                 sys.executable,
@@ -55,13 +55,13 @@ class RunnerTests(unittest.TestCase):
                 "--candidate",
                 "rust-jni",
                 "--algorithm",
-                "eytzinger",
+                "unknown",
             ],
             capture_output=True,
             text=True,
         )
         self.assertNotEqual(0, p.returncode)
-        self.assertIn("Rust 不支持", p.stderr)
+        self.assertIn("invalid choice", p.stderr)
 
     def test_incomplete_jmh_is_not_reported(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -140,16 +140,17 @@ class RunnerTests(unittest.TestCase):
         import candidates
 
         c, a = candidates.selection("all", "legacy")
-        self.assertEqual(324, len(candidates.coverage(c, a)))
-        self.assertEqual(162, len(candidates.coverage(["rust-jni"], a)))
+        self.assertEqual(run.ALGORITHMS, candidates.COMMON)
+        self.assertEqual(972, len(candidates.coverage(c, a)))
+        self.assertEqual(486, len(candidates.coverage(["rust-jni"], a)))
         pairs = candidates.order(c, a)
         self.assertEqual(pairs, candidates.order(c, a))
-        self.assertEqual(6, len(set(pairs)))
-        for i in range(0, 6, 2):
+        self.assertEqual(18, len(set(pairs)))
+        for i in range(0, 18, 2):
             self.assertEqual(pairs[i][1], pairs[i + 1][1])
             self.assertNotEqual(pairs[i][0], pairs[i + 1][0])
         with self.assertRaises(ValueError):
-            candidates.selection("all", "eytzinger")
+            candidates.selection("all", "unknown")
         self.assertNotEqual(
             candidates.key(
                 dict(
@@ -187,8 +188,10 @@ class RunnerTests(unittest.TestCase):
             (["rust-jni"], ["prefix16"]),
             candidates.selection("rust-jni", "legacy", True),
         )
-        with self.assertRaisesRegex(ValueError, "Rust 不支持"):
-            candidates.selection("all", "eytzinger", True)
+        self.assertEqual(
+            (["java", "rust-jni"], ["eytzinger"]),
+            candidates.selection("all", "eytzinger", True),
+        )
 
     def test_resume_checks_native_and_query_identity(self):
         import candidates

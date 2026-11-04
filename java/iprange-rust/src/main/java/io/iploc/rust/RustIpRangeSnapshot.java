@@ -9,7 +9,17 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** Linux x86_64 Rust/JNI 候选；显式关闭，Cleaner 仅作为遗漏关闭的兜底。 */
 public final class RustIpRangeSnapshot implements IpRangeSnapshot {
-  public static final List<String> ALGORITHMS = List.of("binary", "prefix16", "prefix20");
+  public static final List<String> ALGORITHMS =
+      List.of(
+          "binary",
+          "prefix16",
+          "prefix20",
+          "prefix16-24",
+          "interleaved4",
+          "interleaved8",
+          "prefix16-interleaved4",
+          "prefix16-interleaved8",
+          "eytzinger");
   private static final Cleaner CLEANER = Cleaner.create();
   private final Lease lease;
   private final Cleaner.Cleanable cleanable;
